@@ -29,6 +29,10 @@ class TrainLocomotive {
     this.carriageCabinLights = [];
     this.carriageWindowMeshes = [];
 
+    // Pre-allocated scratchpad vectors (Zero-GC optimization from Performance Guide)
+    this._fTan = new THREE.Vector3();
+    this._rTan = new THREE.Vector3();
+
     this.buildLocomotive();
     this.buildCarriages();
     this.setLights(false);
@@ -691,13 +695,11 @@ class TrainLocomotive {
     const fLocoU = (this.physics.progress + locoHalfBogieNorm + 1.0) % 1.0;
     const rLocoU = (this.physics.progress - locoHalfBogieNorm + 1.0) % 1.0;
 
-    const fTan = new THREE.Vector3();
-    const rTan = new THREE.Vector3();
-    spline.getTangentAt(fLocoU, fTan);
-    spline.getTangentAt(rLocoU, rTan);
+    this.physics.trackSpline.getTangentAt(fLocoU, this._fTan);
+    this.physics.trackSpline.getTangentAt(rLocoU, this._rTan);
 
-    this.frontBogie.rotation.y = Math.atan2(fTan.x, fTan.z);
-    this.rearBogie.rotation.y = Math.atan2(rTan.x, rTan.z);
+    this.frontBogie.rotation.y = Math.atan2(this._fTan.x, this._fTan.z);
+    this.rearBogie.rotation.y = Math.atan2(this._rTan.x, this._rTan.z);
 
     // 2. Update All 5 Trailing Passenger Carriages along the Spline
     const count = this.carriages.length;

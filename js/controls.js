@@ -14,6 +14,7 @@ class GameControls {
     this.orbitTheta = GAME_CONFIG.camera.defaultYaw;       // Azimuth
     this.orbitPhi = Math.PI * 0.5 - GAME_CONFIG.camera.defaultPitch; // Polar angle
     this.targetPos = new THREE.Vector3();
+    this._tempTrainTarget = new THREE.Vector3(); // Zero-GC pre-allocated scratchpad
 
     // Inertia / Momentum for smooth orbit
     this.velTheta = 0; // Angular velocity azimuth
@@ -413,13 +414,15 @@ class GameControls {
     // Clamp pitch to avoid gimbal flip or clipping ground
     this.orbitPhi = Math.max(0.12, Math.min(Math.PI * 0.48, this.orbitPhi));
 
-    // Smooth relaxing zoom interpolation
-    this.orbitRadius += (this.targetRadius - this.orbitRadius) * 0.12;
+    // Smooth relaxing zoom interpolation with frame-rate independent exponential damping
+    const delta = Math.min(0.05, dt || 0.016);
+    const zoomFactor = 1.0 - Math.exp(-8.0 * delta);
+    this.orbitRadius += (this.targetRadius - this.orbitRadius) * zoomFactor;
 
-    // Camera smoothly follows train locomotive position
+    // Camera smoothly follows train locomotive position (Zero GC allocation)
     const trainPos = this.physics.currentPosition;
-    // Look-at point slightly above track level (locomotive center of mass)
-    this.targetPos.lerp(new THREE.Vector3(trainPos.x, trainPos.y + 2.0, trainPos.z), 0.08);
+    this._tempTrainTarget.set(trainPos.x, trainPos.y + 2.0, trainPos.z);
+    this.targetPos.lerp(this._tempTrainTarget, 1.0 - Math.exp(-6.0 * delta));
 
     // Calculate spherical camera position relative to target
     const sinPhi = Math.sin(this.orbitPhi);
