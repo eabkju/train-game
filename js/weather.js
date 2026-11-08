@@ -52,17 +52,14 @@ class WeatherManager {
   }
 
   initSky() {
-    // 1. Sky Dome Hemisphere (Expansive 2500m radius dome)
-    const skyGeom = new THREE.SphereGeometry(2500, 32, 24);
-    const skyMat = new THREE.MeshBasicMaterial({
-      color: GAME_CONFIG.colors.daySky,
-      side: THREE.BackSide
-    });
-    this.skyDome = new THREE.Mesh(skyGeom, skyMat);
-    this.scene.add(this.skyDome);
+    // 1. Native Infinite Scene Background (Never clips, zero black holes or circles)
+    this.scene.background = new THREE.Color(GAME_CONFIG.colors.daySky);
+    if (this.renderer) {
+      this.renderer.setClearColor(GAME_CONFIG.colors.daySky, 1.0);
+    }
 
-    // 2. Starfield (visible at night)
-    const starCount = 1800;
+    // 2. Starfield (visible at night, depthWrite false, fog false)
+    const starCount = 1200;
     const starGeom = new THREE.BufferGeometry();
     const starPositions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
@@ -70,7 +67,7 @@ class WeatherManager {
       const v = Math.random();
       const theta = u * 2.0 * Math.PI;
       const phi = Math.acos(2.0 * v - 1.0);
-      const r = 2450;
+      const r = 1600; // Comfortably inside 4000m camera view frustum
       // Only place stars above horizon
       const y = Math.abs(r * Math.cos(phi)) + 15;
       const x = r * Math.sin(phi) * Math.cos(theta);
@@ -85,20 +82,24 @@ class WeatherManager {
       color: 0xffffff,
       size: 1.8,
       transparent: true,
-      opacity: 0.0
+      opacity: 0.85,
+      fog: false,
+      depthWrite: false
     });
     this.stars = new THREE.Points(starGeom, starMat);
+    this.stars.visible = false;
     this.scene.add(this.stars);
 
-    // 3. Glowing Full Moon Disc
-    const moonGeom = new THREE.SphereGeometry(28, 24, 24);
+    // 3. Glowing Full Moon Disc (Visible at night, depthWrite false to prevent silhouettes)
+    const moonGeom = new THREE.SphereGeometry(22, 24, 24);
     const moonMat = new THREE.MeshBasicMaterial({
       color: GAME_CONFIG.colors.moonlitMoon,
-      transparent: true,
-      opacity: 0.0
+      fog: false,
+      depthWrite: false
     });
     this.moonMesh = new THREE.Mesh(moonGeom, moonMat);
-    this.moonMesh.position.set(-320, 420, -380);
+    this.moonMesh.position.set(-250, 360, -280);
+    this.moonMesh.visible = false;
     this.scene.add(this.moonMesh);
   }
 
@@ -155,16 +156,19 @@ class WeatherManager {
   }
 
   applyDayMode() {
-    // Soft natural daylight (Premium simulator lighting)
-    this.skyDome.material.color.setHex(GAME_CONFIG.colors.daySky);
+    // Soft natural daylight (Flawless infinite background, zero clipping holes)
+    this.scene.background.setHex(GAME_CONFIG.colors.daySky);
+    if (this.renderer) {
+      this.renderer.setClearColor(GAME_CONFIG.colors.daySky, 1.0);
+    }
     this.sunLight.intensity = 1.05;
     this.moonLight.intensity = 0.0;
     this.hemiLight.color.setHex(GAME_CONFIG.colors.daySun);
     this.hemiLight.groundColor.setHex(0x384532);
     this.hemiLight.intensity = 0.52;
 
-    this.stars.material.opacity = 0.0;
-    this.moonMesh.material.opacity = 0.0;
+    if (this.stars) this.stars.visible = false;
+    if (this.moonMesh) this.moonMesh.visible = false;
 
     const fogColor = this.isRaining ? 0x8296a8 : 0x9fbcd6;
     this.scene.fog.color.setHex(fogColor);
@@ -174,15 +178,18 @@ class WeatherManager {
 
   applyNightMode() {
     // Beautiful Moonlit Night (soft natural moonlight, never pitch black)
-    this.skyDome.material.color.setHex(GAME_CONFIG.colors.moonlitSky);
+    this.scene.background.setHex(GAME_CONFIG.colors.moonlitSky);
+    if (this.renderer) {
+      this.renderer.setClearColor(GAME_CONFIG.colors.moonlitSky, 1.0);
+    }
     this.sunLight.intensity = 0.0;
     this.moonLight.intensity = 0.65;
     this.hemiLight.color.setHex(0x3a506e);
     this.hemiLight.groundColor.setHex(0x131a24);
     this.hemiLight.intensity = 0.45;
 
-    this.stars.material.opacity = 0.85;
-    this.moonMesh.material.opacity = 0.95;
+    if (this.stars) this.stars.visible = true;
+    if (this.moonMesh) this.moonMesh.visible = true;
 
     const fogColor = this.isRaining ? 0x080f1a : 0x0c1626;
     this.scene.fog.color.setHex(fogColor);
@@ -212,9 +219,15 @@ class WeatherManager {
   }
 
   update(dt, targetPosition, camera) {
-    // Star twinkle effect
-    if (this.isNight && this.stars) {
-      this.stars.rotation.y += dt * 0.002;
+    // Celestial positioning relative to camera at night
+    if (this.isNight && camera) {
+      if (this.stars) {
+        this.stars.position.copy(camera.position);
+        this.stars.rotation.y += dt * 0.002;
+      }
+      if (this.moonMesh) {
+        this.moonMesh.position.set(camera.position.x - 250, camera.position.y + 360, camera.position.z - 280);
+      }
     }
 
     // Update slow natural falling raindrops (centered around train)

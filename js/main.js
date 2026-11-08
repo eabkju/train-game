@@ -12,9 +12,9 @@
     scene = new THREE.Scene();
     clock = new THREE.Clock();
 
-    // 2. Camera Setup (2500m view distance for expansive, panoramic infinity circuit)
+    // 2. Camera Setup (Expansive 4000m view distance for endless panoramic horizons)
     const aspect = window.innerWidth / window.innerHeight;
-    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, 2500);
+    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, 4000);
 
     // 3. WebGL Renderer with High Performance & Smooth 60fps
     try {
@@ -36,11 +36,13 @@
       }
       return;
     }
+    renderer.setClearColor(GAME_CONFIG.colors.daySky, 1.0); // Never clear to black!
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = false; // Fast vertex-shaded rendering for butter-smooth framerate
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.92; // Natural, balanced daylight exposure (no blown-out highlights or cheap contrast)
+    scene.background = new THREE.Color(GAME_CONFIG.colors.daySky);
     container.appendChild(renderer.domElement);
 
     // 4. Initialize Core Game Subsystems
