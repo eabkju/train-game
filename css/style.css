@@ -1,0 +1,416 @@
+/* style.css - Responsive glassmorphic HUD, draggable 3-button dock, and camera navigation */
+:root {
+  --bg-glass: rgba(18, 28, 42, 0.72);
+  --bg-glass-hover: rgba(28, 42, 62, 0.85);
+  --border-glass: rgba(255, 255, 255, 0.14);
+  --accent-cyan: #38bdf8;
+  --accent-gold: #facc15;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --shadow-dock: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #080f1a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-primary);
+}
+
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  touch-action: none;
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* ========================================================
+   TOP STATUS HUD (Weather, Time of Day, Speedometer)
+   ======================================================== */
+#top-hud {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 9999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.hud-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.hud-btn.active {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: var(--accent-cyan);
+  color: #bae6fd;
+}
+
+.hud-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-glass);
+}
+
+#speed-gauge {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+#speed-gauge-val {
+  font-size: 17px;
+  color: var(--accent-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+#speed-gauge-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ========================================================
+   LEFT-SIDE CAMERA CONTROLS (+, -, Recenter)
+   ======================================================== */
+#left-camera-hud {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.cam-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.cam-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: scale(1.06);
+}
+
+.cam-btn:active {
+  transform: scale(0.94);
+  background: rgba(56, 189, 248, 0.3);
+}
+
+/* ========================================================
+   THE 3 CONTROLLERS DOCK (Start/Stop, Horn, Light)
+   ======================================================== */
+#train-controls-dock {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid var(--border-glass);
+  border-radius: 26px;
+  box-shadow: var(--shadow-dock);
+  cursor: grab;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  touch-action: none;
+}
+
+#train-controls-dock:active {
+  cursor: grabbing;
+}
+
+/* Draggable Move Mode Visual Cue */
+#train-controls-dock.dragging-mode {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4), 0 20px 40px rgba(0, 0, 0, 0.6);
+  transform: scale(1.04);
+}
+
+.drag-grip-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  opacity: 0.45;
+}
+
+.grip-bar {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+
+.ctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 84px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctrl-btn .btn-icon {
+  font-size: 26px;
+  margin-bottom: 2px;
+  transition: transform 0.2s ease;
+}
+
+.ctrl-btn .btn-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.ctrl-btn .btn-sub {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.ctrl-btn:hover {
+  background: var(--bg-glass-hover);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.ctrl-btn:active {
+  transform: scale(0.94);
+}
+
+/* 1. START / STOP Dynamic Styling */
+#btn-start-stop {
+  background: linear-gradient(145deg, rgba(34, 197, 94, 0.2), rgba(16, 80, 40, 0.35));
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+#btn-start-stop:hover {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.35);
+}
+
+#btn-start-stop.running {
+  background: linear-gradient(145deg, rgba(239, 68, 68, 0.25), rgba(120, 20, 20, 0.4));
+  border-color: var(--accent-red);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.4);
+}
+
+#btn-start-stop.running .btn-icon {
+  color: #fca5a5;
+}
+
+/* 2. HORN Button Styling */
+#btn-horn {
+  background: linear-gradient(145deg, rgba(250, 204, 21, 0.15), rgba(85, 65, 5, 0.3));
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+#btn-horn.active {
+  background: linear-gradient(145deg, rgba(250, 204, 21, 0.4), rgba(140, 105, 10, 0.6));
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.5);
+  transform: scale(0.96);
+}
+
+/* 3. LIGHT Button Styling */
+#btn-light {
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.15), rgba(15, 60, 90, 0.3));
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+#btn-light.active {
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.35), rgba(20, 95, 140, 0.55));
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.45);
+}
+
+#btn-light.active .btn-icon {
+  filter: drop-shadow(0 0 6px #7dd3fc);
+}
+
+/* ========================================================
+   BOTTOM REPOSITIONING HINT
+   ======================================================== */
+.dock-hint {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* ========================================================
+   LOADING OVERLAY
+   ======================================================== */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #08111e;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  transition: opacity 0.5s ease;
+}
+
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.train-spinner {
+  font-size: 48px;
+  animation: trainBounce 1.2s infinite ease-in-out;
+}
+
+@keyframes trainBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.loader-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.loader-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ========================================================
+   MOBILE RESPONSIVENESS
+   ======================================================== */
+@media (max-width: 640px) {
+  #train-controls-dock {
+    bottom: 16px;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .ctrl-btn {
+    width: 76px;
+    height: 72px;
+    border-radius: 16px;
+  }
+  .ctrl-btn .btn-icon {
+    font-size: 22px;
+  }
+  .ctrl-btn .btn-label {
+    font-size: 11px;
+  }
+  #left-camera-hud {
+    left: 12px;
+    gap: 8px;
+  }
+  .cam-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 17px;
+  }
+  #top-hud {
+    top: 10px;
+    padding: 6px 12px;
+    gap: 8px;
+  }
+  .hud-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}

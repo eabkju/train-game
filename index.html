@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080f1a">
+  <title>Realistic 3D Web Train Simulation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-overlay">
+    <div class="train-spinner">🚂</div>
+    <div class="loader-title">3D Train Simulation</div>
+    <div class="loader-sub">Preparing realistic environment & tracks...</div>
+  </div>
+
+  <!-- 3D Canvas Host -->
+  <div id="canvas-container"></div>
+
+  <!-- Top Status & Mode HUD -->
+  <header id="top-hud">
+    <button id="btn-day-night" class="hud-btn" title="Toggle Day or Moonlit Night Mode">
+      <span class="hud-icon">☀️</span>
+      <span class="hud-val">Day</span>
+    </button>
+    <button id="btn-rain" class="hud-btn" title="Toggle Rain Atmosphere">
+      <span class="hud-icon">☁️</span>
+      <span class="hud-val">Rain: OFF</span>
+    </button>
+    <div class="hud-divider"></div>
+    <div id="speed-gauge" title="Train Velocity">
+      <span id="speed-gauge-val">0</span>
+      <span id="speed-gauge-unit">km/h</span>
+    </div>
+  </header>
+
+  <!-- Left-Side Camera Navigation (+, -, Recenter) -->
+  <nav id="left-camera-hud" aria-label="Camera Controls">
+    <button id="btn-zoom-in" class="cam-btn" title="Zoom In (+)">+</button>
+    <button id="btn-zoom-out" class="cam-btn" title="Zoom Out (-)">−</button>
+    <button id="btn-recenter" class="cam-btn" title="Recenter Camera on Train">🎯</button>
+  </nav>
+
+  <!-- The 3 Primary Controllers Dock (Autofit, Long-Tap Draggable) -->
+  <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
+    <div class="drag-grip-indicator" title="Drag Grip">
+      <span class="grip-bar"></span>
+      <span class="grip-bar"></span>
+      <span class="grip-bar"></span>
+    </div>
+
+    <!-- 1. Start / Stop Controller -->
+    <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
+      <span class="btn-icon">▶</span>
+      <span class="btn-label">START</span>
+      <span class="btn-sub">Throttle / Go</span>
+    </button>
+
+    <!-- 2. Horn Controller -->
+    <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
+      <span class="btn-icon">📢</span>
+      <span class="btn-label">HORN</span>
+      <span class="btn-sub">Press & Hold</span>
+    </button>
+
+    <!-- 3. Light Controller -->
+    <button id="btn-light" class="ctrl-btn" title="Toggle Headlight & Cabin Lights (Hotkey: L)">
+      <span class="btn-icon">💡</span>
+      <span class="btn-label">LIGHT</span>
+      <span class="btn-sub">Headlight OFF</span>
+    </button>
+
+    <div class="dock-hint">Hold 500ms to drag anywhere</div>
+  </div>
+
+  <!-- Vendored Core Libraries (Offline Compatible) -->
+  <script src="libs/three.min.js"></script>
+  <script src="libs/OrbitControls.js"></script>
+  <script src="libs/OBJLoader.js"></script>
+
+  <!-- Game Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/track.js"></script>
+  <script src="js/train.js"></script>
+  <script src="js/environment.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
