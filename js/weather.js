@@ -157,9 +157,10 @@ class WeatherManager {
 
   applyDayMode() {
     // Soft natural daylight (Flawless infinite background, zero clipping holes)
-    this.scene.background.setHex(GAME_CONFIG.colors.daySky);
+    const skyCol = GAME_CONFIG.colors.daySky;
+    this.scene.background.setHex(skyCol);
     if (this.renderer) {
-      this.renderer.setClearColor(GAME_CONFIG.colors.daySky, 1.0);
+      this.renderer.setClearColor(skyCol, 1.0);
     }
     this.sunLight.intensity = 1.05;
     this.moonLight.intensity = 0.0;
@@ -170,17 +171,18 @@ class WeatherManager {
     if (this.stars) this.stars.visible = false;
     if (this.moonMesh) this.moonMesh.visible = false;
 
-    const fogColor = this.isRaining ? 0x8296a8 : 0x9fbcd6;
+    const fogColor = this.isRaining ? 0x8296a8 : skyCol;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.near = this.isRaining ? 150 : 300;
-    this.scene.fog.far = this.isRaining ? 900 : 1800;
+    this.scene.fog.near = this.isRaining ? 150 : 400;
+    this.scene.fog.far = this.isRaining ? 900 : 2600;
   }
 
   applyNightMode() {
     // Beautiful Moonlit Night (soft natural moonlight, never pitch black)
-    this.scene.background.setHex(GAME_CONFIG.colors.moonlitSky);
+    const nightSkyCol = GAME_CONFIG.colors.moonlitSky;
+    this.scene.background.setHex(nightSkyCol);
     if (this.renderer) {
-      this.renderer.setClearColor(GAME_CONFIG.colors.moonlitSky, 1.0);
+      this.renderer.setClearColor(nightSkyCol, 1.0);
     }
     this.sunLight.intensity = 0.0;
     this.moonLight.intensity = 0.65;
@@ -191,10 +193,10 @@ class WeatherManager {
     if (this.stars) this.stars.visible = true;
     if (this.moonMesh) this.moonMesh.visible = true;
 
-    const fogColor = this.isRaining ? 0x080f1a : 0x0c1626;
+    const fogColor = this.isRaining ? 0x080f1a : nightSkyCol;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.near = this.isRaining ? 120 : 250;
-    this.scene.fog.far = this.isRaining ? 800 : 1600;
+    this.scene.fog.near = this.isRaining ? 120 : 350;
+    this.scene.fog.far = this.isRaining ? 800 : 2400;
   }
 
   toggleRain() {

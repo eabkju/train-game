@@ -68,10 +68,6 @@ class EnvironmentManager {
     // Grid of fields across the 2048x2048 satellite tile
     for (let gy = 0; gy < 2048; gy += 150) {
       for (let gx = 0; gx < 2048; gx += 170) {
-        // Skip corridor near central railway
-        const distFromCenter = Math.abs(gx + 85 - 1024);
-        if (distFromCenter < 90 && (gy > 200 && gy < 1848)) continue;
-
         const w = 110 + rand() * 120;
         const h = 90 + rand() * 100;
         const col = fieldCols[Math.floor(rand() * fieldCols.length)];
@@ -134,15 +130,7 @@ class EnvironmentManager {
     svg += `
   <path d="M 0,920 Q 380,880 640,1100 T 1024,1150 T 1620,1220 T 2048,1380" fill="none" stroke="#6b5f4d" stroke-width="8" stroke-linecap="round" stroke-dasharray="1 0"/>
   <path d="M 380,720 Q 520,840 640,1350 T 800,1850 T 1024,2048" fill="none" stroke="#635846" stroke-width="6" stroke-linecap="round"/>
-  <path d="M 1480,440 Q 1520,780 1620,1220 T 1540,1720" fill="none" stroke="#675d4b" stroke-width="7" stroke-linecap="round"/>`;
-
-    // 6. Central Railway Track Corridor (Google Earth view)
-    svg += `
-  <!-- Railway Corridor Easement & Gravel Embankment -->
-  <rect x="996" y="0" width="56" height="2048" fill="#3f3b37"/>
-  <rect x="1010" y="0" width="28" height="2048" fill="#4b4641"/>
-  <line x1="996" y1="0" x2="996" y2="2048" stroke="#2e2b27" stroke-width="4"/>
-  <line x1="1052" y1="0" x2="1052" y2="2048" stroke="#2e2b27" stroke-width="4"/>
+  <path d="M 1480,440 Q 1520,780 1620,1220 T 1540,1720" fill="none" stroke="#675d4b" stroke-width="7" stroke-linecap="round"/>
 </svg>`;
 
     return svg;

@@ -12,7 +12,6 @@ class TrackSystem {
     this.initSpline();
     this.buildRails();
     this.buildSleepers();
-    this.buildBallastStrip();
     this.buildBridgeOverpass();
   }
 
@@ -141,42 +140,6 @@ class TrackSystem {
 
     instancedSleepers.instanceMatrix.needsUpdate = true;
     this.trackGroup.add(instancedSleepers);
-  }
-
-  buildBallastStrip() {
-    const totalLength = this.spline.getLength();
-    const spacing = 4.0;
-    const count = Math.floor(totalLength / spacing);
-
-    const patchW = GAME_CONFIG.track.ballastWidth + 2.5;
-    const patchGeom = new THREE.PlaneGeometry(patchW, spacing * 1.05);
-    patchGeom.rotateX(-Math.PI * 0.5);
-
-    const patchMat = new THREE.MeshLambertMaterial({
-      color: GAME_CONFIG.colors.ballast
-    });
-
-    const instancedBallast = new THREE.InstancedMesh(patchGeom, patchMat, count);
-    instancedBallast.receiveShadow = false;
-
-    const dummy = new THREE.Object3D();
-
-    for (let i = 0; i < count; i++) {
-      const u = i / count;
-      const pos = this.spline.getPointAt(u);
-      const tangent = this.spline.getTangentAt(u);
-
-      dummy.position.copy(pos);
-      dummy.position.y = pos.y + 0.02; // Follows 3D track elevation seamlessly
-
-      const pitch = -Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
-      dummy.rotation.set(pitch, Math.atan2(tangent.x, tangent.z), 0, 'YXZ');
-      dummy.updateMatrix();
-      instancedBallast.setMatrixAt(i, dummy.matrix);
-    }
-
-    instancedBallast.instanceMatrix.needsUpdate = true;
-    this.trackGroup.add(instancedBallast);
   }
 
   // Scenic Steel Girder Bridge at the Center Crossing (where upper track flies over lower track)
