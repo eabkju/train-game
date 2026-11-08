@@ -117,10 +117,10 @@ class GameControls {
   updateLightUI(on) {
     if (on) {
       this.btnLight.classList.add('active');
-      this.btnLight.querySelector('.btn-sub').textContent = 'Headlight ON';
+      this.btnLight.querySelector('.btn-sub').textContent = 'Cabin & Lights ON';
     } else {
       this.btnLight.classList.remove('active');
-      this.btnLight.querySelector('.btn-sub').textContent = 'Headlight OFF';
+      this.btnLight.querySelector('.btn-sub').textContent = 'Lights OFF';
     }
   }
 

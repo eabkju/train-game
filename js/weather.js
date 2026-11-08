@@ -19,9 +19,9 @@ class WeatherManager {
 
     // Rain system
     this.rainParticles = null;
-    this.rainDropCount = 4500;
+    this.rainDropCount = 6000;
     this.rainGeom = null;
-    this.rainBoxSize = { x: 120, y: 55, z: 120 };
+    this.rainBoxSize = { x: 260, y: 75, z: 260 };
 
     this.initLighting();
     this.initSky();

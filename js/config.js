@@ -1,16 +1,24 @@
 // config.js - Global game configuration and physical constants
 window.GAME_CONFIG = {
-  // Train Physics
+  // Train & Carriages Physics
   train: {
     maxSpeed: 14.0,           // Maximum cruising speed (m/s, ~50 km/h)
-    acceleration: 2.5,        // Acceleration rate (m/s^2)
+    acceleration: 2.2,        // Acceleration rate (m/s^2)
     deceleration: 3.5,        // Braking / deceleration rate (m/s^2)
-    friction: 0.4,            // Coasting natural friction (m/s^2)
+    friction: 0.35,           // Coasting natural friction (m/s^2)
     wheelRadius: 0.52,        // Wheel radius in meters for realistic rotation
-    bogieDistance: 6.8,       // Distance between front and rear bogies
+    bogieDistance: 6.8,       // Distance between locomotive front and rear bogies
     length: 12.0,             // Total locomotive length
     width: 3.1,               // Total locomotive width
-    height: 4.2               // Total locomotive height
+    height: 4.2,              // Total locomotive height
+    
+    // 5 Attached Carriages / Boggies
+    carriageCount: 5,         // Number of trailing passenger carriages
+    carriageLength: 11.2,     // Length of each passenger coach
+    carriageWidth: 2.9,       // Coach body width
+    carriageHeight: 3.65,     // Coach body height
+    carriageSpacing: 12.2,    // Center-to-center distance between adjacent train cars
+    carriageBogieDist: 6.8    // Bogie spacing on each coach
   },
 
   // Track Dimensions
@@ -24,24 +32,25 @@ window.GAME_CONFIG = {
     sleeperSpacing: 0.65,     // Spacing between consecutive sleepers
     ballastWidth: 4.8,        // Ballast embankment width at top
     ballastHeight: 0.35,      // Ballast height
-    loopRadius: 90.0          // Base radius of the scenic track loop
+    straightLength: 2400.0,   // Length of straight track section (~3 min run at cruise speed)
+    curveRadius: 420.0        // Radius of mild sweeping curves
   },
 
   // Camera Settings
   camera: {
     fov: 55,
     near: 0.1,
-    far: 2000,
-    defaultDistance: 24,
-    minDistance: 5,
-    maxDistance: 90,
-    defaultPitch: 0.42,       // Radians elevation angle
+    far: 5000,
+    defaultDistance: 32,
+    minDistance: 6,
+    maxDistance: 160,
+    defaultPitch: 0.38,       // Radians elevation angle
     defaultYaw: -0.65         // Radians azimuth angle
   },
 
   // Visual Themes / Lighting
   colors: {
-    // T3M2M-005 Diesel Locomotive Colors
+    // T3M2M-005 Diesel Locomotive & Carriage Colors
     trainBody: 0x1a334f,      // Deep navy blue
     trainStripe: 0xdeb841,    // Vivid warm golden yellow
     trainRoof: 0x5a636e,      // Weathered steel grey
@@ -50,6 +59,10 @@ window.GAME_CONFIG = {
     trainWheels: 0x8a929a,    // Steel wheel rims
     trainBuffersRed: 0x9b2226,// Buffer beam deep red
     trainBuffersWhite: 0xf4f3ee, // White hazard stripe
+
+    // Carriage Colors
+    coachWindowGlow: 0xffdf88,// Warm interior cabin light
+    coachGangway: 0x181a1d,   // Flexible rubber accordion connector
 
     // Track
     rails: 0x9aa0a6,          // Polished steel rail tops
