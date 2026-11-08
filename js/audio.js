@@ -32,6 +32,7 @@ class TrainAudioEngine {
     this.rainSource = null;
     this.rainGain = null;
     this.rainFilter = null;
+    this.rainMasterGain = null;
 
     this.initialized = false;
   }
@@ -148,40 +149,106 @@ class TrainAudioEngine {
   }
 
   setupRainSynth() {
+    // ============================================================
+    // LAYERED REALISTIC RAIN SOUND
+    // Layer 1: Rain hiss — bandpass noise 800-3000Hz
+    // Layer 2: Drop patter — highpass noise with slow LFO shimmer
+    // Layer 3: Low rumble — lowpass noise, rain on ground/roof
+    // Layer 4: Delay feedback — natural splattering echo
+    // All layers feed into rainMasterGain so setRain() controls all
+    // ============================================================
     const ctx = this.ctx;
-    const bufferSize = ctx.sampleRate * 4;
-    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    const now = ctx.currentTime;
 
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.99886 * b0 + white * 0.0555179;
-      b1 = 0.99332 * b1 + white * 0.0750759;
-      b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.7616 * b5 - white * 0.0168980;
-      output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
-      b6 = white * 0.115926;
-    }
+    // Helper: create a looping white noise buffer source
+    const makeNoise = (durationSecs) => {
+      const bufSize = Math.floor(ctx.sampleRate * durationSecs);
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      return src;
+    };
 
-    this.rainSource = ctx.createBufferSource();
-    this.rainSource.buffer = noiseBuffer;
-    this.rainSource.loop = true; // Loops continuously while rain is ON
+    // Master rain output gain (controlled by setRain)
+    this.rainMasterGain = ctx.createGain();
+    this.rainMasterGain.gain.setValueAtTime(0.0001, now);
+    this.rainMasterGain.connect(this.masterGain);
 
-    this.rainFilter = ctx.createBiquadFilter();
-    this.rainFilter.type = 'lowpass';
-    this.rainFilter.frequency.setValueAtTime(1100, ctx.currentTime);
+    // --- Layer 1: Rain hiss (the shhh of continuous rain) ---
+    const hissNoise = makeNoise(2.5);
+    const hissBP = ctx.createBiquadFilter();
+    hissBP.type = 'bandpass';
+    hissBP.frequency.value = 1800;
+    hissBP.Q.value = 0.6;
+    const hissGain = ctx.createGain();
+    hissGain.gain.value = 0.55;
+    hissNoise.connect(hissBP);
+    hissBP.connect(hissGain);
+    hissGain.connect(this.rainMasterGain);
+    hissNoise.start(0);
 
-    this.rainGain = ctx.createGain();
-    this.rainGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    // --- Layer 2: Drop patter (high-freq shimmer, LFO-modulated) ---
+    const patterNoise = makeNoise(1.8);
+    const patterHP = ctx.createBiquadFilter();
+    patterHP.type = 'highpass';
+    patterHP.frequency.value = 3200;
+    patterHP.Q.value = 0.4;
+    const patterGain = ctx.createGain();
+    patterGain.gain.value = 0.22;
+    // LFO to give varying intensity (rain gusts)
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 1.6;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.12;
+    lfo.connect(lfoGain);
+    lfoGain.connect(patterGain.gain);
+    lfo.start(0);
+    patterNoise.connect(patterHP);
+    patterHP.connect(patterGain);
+    patterGain.connect(this.rainMasterGain);
+    patterNoise.start(0);
 
-    this.rainSource.connect(this.rainFilter);
-    this.rainFilter.connect(this.rainGain);
-    this.rainGain.connect(this.masterGain);
+    // --- Layer 3: Rumble (low-frequency ground/roof impact thud) ---
+    const rumbleNoise = makeNoise(3.0);
+    const rumbleLP = ctx.createBiquadFilter();
+    rumbleLP.type = 'lowpass';
+    rumbleLP.frequency.value = 180;
+    rumbleLP.Q.value = 1.2;
+    const rumbleGain = ctx.createGain();
+    rumbleGain.gain.value = 0.30;
+    rumbleNoise.connect(rumbleLP);
+    rumbleLP.connect(rumbleGain);
+    rumbleGain.connect(this.rainMasterGain);
+    rumbleNoise.start(0);
 
-    this.rainSource.start(0);
+    // --- Layer 4: Delay feedback echo (natural spattering reverb) ---
+    const echoNoise = makeNoise(2.0);
+    const echoHP = ctx.createBiquadFilter();
+    echoHP.type = 'bandpass';
+    echoHP.frequency.value = 1200;
+    echoHP.Q.value = 0.8;
+    const delay = ctx.createDelay(0.3);
+    delay.delayTime.value = 0.085;
+    const feedbackGain = ctx.createGain();
+    feedbackGain.gain.value = 0.28;
+    const echoOutGain = ctx.createGain();
+    echoOutGain.gain.value = 0.18;
+    echoNoise.connect(echoHP);
+    echoHP.connect(delay);
+    delay.connect(feedbackGain);
+    feedbackGain.connect(delay); // feedback loop
+    delay.connect(echoOutGain);
+    echoOutGain.connect(this.rainMasterGain);
+    echoNoise.start(0);
+
+    // Keep legacy reference for setRain compat
+    this.rainGain = this.rainMasterGain;
   }
 
   setEngineActive(active) {
@@ -191,13 +258,82 @@ class TrainAudioEngine {
     const now = this.ctx.currentTime;
 
     if (active) {
+      // ================================================================
+      // REALISTIC DIESEL ENGINE STARTUP SEQUENCE
+      // Phase 1 (0–0.5s):  Starter motor whine — sawtooth osc 220→80Hz
+      // Phase 2 (0.3–0.9s): Cylinder fire attempts — 4 short noise bursts
+      // Phase 3 (0.7–1.6s): Engine catches — freq drops, volume surges
+      // Phase 4 (1.6s+):   Settles into smooth idle rumble
+      // ================================================================
+
+      // Cancel any fade-out in progress
       this.engineGain.gain.cancelScheduledValues(now);
-      this.engineGain.gain.setValueAtTime(this.engineGain.gain.value, now);
-      this.engineGain.gain.linearRampToValueAtTime(0.42, now + 1.2);
+      this.engineGain.gain.setValueAtTime(0.0001, now);
+
+      // Phase 1 — Starter motor whine
+      const starter = this.ctx.createOscillator();
+      starter.type = 'sawtooth';
+      starter.frequency.setValueAtTime(220, now);
+      starter.frequency.exponentialRampToValueAtTime(78, now + 0.65);
+      const starterGain = this.ctx.createGain();
+      starterGain.gain.setValueAtTime(0.0001, now);
+      starterGain.gain.linearRampToValueAtTime(0.18, now + 0.08);
+      starterGain.gain.linearRampToValueAtTime(0.08, now + 0.5);
+      starterGain.gain.linearRampToValueAtTime(0.0001, now + 0.75);
+      starter.connect(starterGain);
+      starterGain.connect(this.masterGain);
+      starter.start(now);
+      starter.stop(now + 0.8);
+
+      // Phase 2 — Cylinder fire bursts (irregular sputtering pops)
+      const fireTimes = [0.30, 0.44, 0.54, 0.62, 0.70];
+      fireTimes.forEach((offset, idx) => {
+        const fireTime = now + offset;
+        const bufLen = Math.floor(this.ctx.sampleRate * 0.09);
+        const buf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.35));
+        }
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        const bp = this.ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 90 + idx * 15;
+        bp.Q.value = 2.5;
+        const fg = this.ctx.createGain();
+        fg.gain.value = 0.22 + Math.random() * 0.08;
+        src.connect(bp);
+        bp.connect(fg);
+        fg.connect(this.masterGain);
+        src.start(fireTime);
+      });
+
+      // Phase 3 — Engine catches: oscillator frequencies drop to idle
+      this.oscSub.frequency.cancelScheduledValues(now);
+      this.oscLow.frequency.cancelScheduledValues(now);
+      this.oscSub.frequency.setValueAtTime(GAME_CONFIG.audio.idleRpmFreq * 1.8, now + 0.65);
+      this.oscLow.frequency.setValueAtTime(GAME_CONFIG.audio.idleRpmFreq * 1.8, now + 0.65);
+      this.oscSub.frequency.exponentialRampToValueAtTime(GAME_CONFIG.audio.idleRpmFreq * 0.5, now + 1.6);
+      this.oscLow.frequency.exponentialRampToValueAtTime(GAME_CONFIG.audio.idleRpmFreq, now + 1.6);
+
+      // Phase 3 gain surge (irregular, not linear) — engine catching feels uneven
+      this.engineGain.gain.setValueAtTime(0.0001, now + 0.60);
+      this.engineGain.gain.linearRampToValueAtTime(0.28, now + 0.80);
+      this.engineGain.gain.linearRampToValueAtTime(0.14, now + 1.05);
+      this.engineGain.gain.linearRampToValueAtTime(0.38, now + 1.40);
+
+      // Phase 4 — Smooth idle
+      this.engineGain.gain.linearRampToValueAtTime(0.30, now + 1.80);
+
     } else {
+      // Natural shutdown: frequency drops slightly then volume fades
       this.engineGain.gain.cancelScheduledValues(now);
       this.engineGain.gain.setValueAtTime(this.engineGain.gain.value, now);
+      this.engineGain.gain.linearRampToValueAtTime(0.18, now + 0.4);
       this.engineGain.gain.linearRampToValueAtTime(0.0001, now + 1.8);
+      this.oscSub.frequency.setTargetAtTime(GAME_CONFIG.audio.idleRpmFreq * 0.4, now + 0.3, 0.6);
+      this.oscLow.frequency.setTargetAtTime(GAME_CONFIG.audio.idleRpmFreq * 0.4, now + 0.3, 0.6);
     }
   }
 
@@ -357,14 +493,19 @@ class TrainAudioEngine {
     if (!this.ctx) return;
     this.isRaining = active;
     const now = this.ctx.currentTime;
+    // rainMasterGain covers all 4 layers (rainGain is aliased to rainMasterGain)
+    const g = this.rainMasterGain || this.rainGain;
+    if (!g) return;
 
-    this.rainGain.gain.cancelScheduledValues(now);
-    this.rainGain.gain.setValueAtTime(this.rainGain.gain.value, now);
+    g.gain.cancelScheduledValues(now);
+    g.gain.setValueAtTime(g.gain.value, now);
 
     if (active) {
-      this.rainGain.gain.linearRampToValueAtTime(0.28, now + 2.0);
+      // Fade in over 2.5s to 0.32 — natural build-up of rain sound
+      g.gain.linearRampToValueAtTime(0.32, now + 2.5);
     } else {
-      this.rainGain.gain.linearRampToValueAtTime(0.0001, now + 1.5);
+      // Fade out over 2.0s — rain trailing off
+      g.gain.linearRampToValueAtTime(0.0001, now + 2.0);
     }
   }
 }

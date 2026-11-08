@@ -19,9 +19,9 @@ class WeatherManager {
 
     // Rain system
     this.rainParticles = null;
-    this.rainDropCount = 6000;
+    this.rainDropCount = 2500;
     this.rainGeom = null;
-    this.rainBoxSize = { x: 260, y: 75, z: 260 };
+    this.rainBoxSize = { x: 150, y: 60, z: 150 };
 
     this.initLighting();
     this.initSky();
@@ -39,8 +39,8 @@ class WeatherManager {
     this.sunLight = new THREE.DirectionalLight(GAME_CONFIG.colors.daySun, 1.35);
     this.sunLight.position.set(80, 110, 60);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 2048;
-    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.mapSize.width = 1024;
+    this.sunLight.shadow.mapSize.height = 1024;
     this.sunLight.shadow.camera.near = 10;
     this.sunLight.shadow.camera.far = 300;
     this.sunLight.shadow.camera.left = -90;
@@ -54,8 +54,8 @@ class WeatherManager {
     this.moonLight = new THREE.DirectionalLight(0xa5c4e8, 0.0);
     this.moonLight.position.set(-60, 95, -70);
     this.moonLight.castShadow = true;
-    this.moonLight.shadow.mapSize.width = 2048;
-    this.moonLight.shadow.mapSize.height = 2048;
+    this.moonLight.shadow.mapSize.width = 1024;
+    this.moonLight.shadow.mapSize.height = 1024;
     this.moonLight.shadow.camera.near = 10;
     this.moonLight.shadow.camera.far = 300;
     this.moonLight.shadow.camera.left = -90;

@@ -21,11 +21,11 @@ class EnvironmentManager {
   }
 
   initTerrain() {
-    // Expansive terrain sized to cover the extended 2400m straightaways
-    const terrainW = 1200;
-    const terrainL = 3400;
-    const segmentsX = 40;
-    const segmentsZ = 120;
+    // Lightweight terrain — fewer segments for better performance
+    const terrainW = 700;
+    const terrainL = 2800;
+    const segmentsX = 20;
+    const segmentsZ = 60;
     const geom = new THREE.PlaneGeometry(terrainW, terrainL, segmentsX, segmentsZ);
     geom.rotateX(-Math.PI * 0.5);
 
@@ -63,7 +63,7 @@ class EnvironmentManager {
     });
 
     const mudSpline = this.trackSystem.spline;
-    const mudPoints = 350;
+    const mudPoints = 80;
     const mudGeom = new THREE.PlaneGeometry(8.5, 6.0, 1, 1);
     mudGeom.rotateX(-Math.PI * 0.5);
 
@@ -194,7 +194,7 @@ class EnvironmentManager {
     const leafGreenMat3 = new THREE.MeshStandardMaterial({ color: 0x24591a, roughness: 0.85, flatShading: true });
 
     const spline = this.trackSystem.spline;
-    const treeCount = 180; // Abundant lush green trees along the long straight route
+    const treeCount = 60; // Reduced for performance
 
     for (let i = 0; i < treeCount; i++) {
       const u = Math.random();
@@ -216,7 +216,7 @@ class EnvironmentManager {
       const trunkH = 3.8 + Math.random() * 1.6;
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.44, trunkH, 7), trunkMat);
       trunk.position.y = trunkH * 0.5;
-      trunk.castShadow = true;
+      trunk.castShadow = false;
       tree.add(trunk);
 
       // Layered vibrant green canopies (clean 3D low-poly crowns)
@@ -227,10 +227,10 @@ class EnvironmentManager {
       for (let l = 0; l < layerCount; l++) {
         const coneR = 2.5 - l * 0.5;
         const coneH = 2.7 - l * 0.35;
-        const canopy = new THREE.Mesh(new THREE.ConeGeometry(coneR, coneH, 7), mat);
+        const canopy = new THREE.Mesh(new THREE.ConeGeometry(coneR, coneH, 5), mat);
         canopy.position.y = trunkH * 0.82 + l * 1.5;
-        canopy.castShadow = true;
-        canopy.receiveShadow = true;
+        canopy.castShadow = false;
+        canopy.receiveShadow = false;
         tree.add(canopy);
       }
 
@@ -319,7 +319,7 @@ class EnvironmentManager {
     });
 
     const tuftGeom = new THREE.PlaneGeometry(0.85, 0.65);
-    const count = 180;
+    const count = 60;
     const instancedGrass = new THREE.InstancedMesh(tuftGeom, tuftMat, count);
     const dummy = new THREE.Object3D();
     const spline = this.trackSystem.spline;
