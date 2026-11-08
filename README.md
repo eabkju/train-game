@@ -1,5 +1,10 @@
 # Realistic 3D Web-Based Train Game
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Play%20Now-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://eabkju.github.io/train-game/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Deployed-blue?style=for-the-badge&logo=github)](https://eabkju.github.io/train-game/)
+
+> **Play Live Game:** **[https://eabkju.github.io/train-game/](https://eabkju.github.io/train-game/)**
+
 A lightweight, offline-ready, realistic 3D railway simulation game built with **Three.js** and procedural **Web Audio API**.
 
 ---
