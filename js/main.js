@@ -12,9 +12,9 @@
     scene = new THREE.Scene();
     clock = new THREE.Clock();
 
-    // 2. Camera Setup (Clipped at 1200m for nearby rendering focus)
+    // 2. Camera Setup (2500m view distance for expansive, panoramic infinity circuit)
     const aspect = window.innerWidth / window.innerHeight;
-    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, 1200);
+    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, 2500);
 
     // 3. WebGL Renderer with High Performance & Smooth 60fps
     try {
@@ -90,7 +90,7 @@
     locomotive.update(dt);
 
     // Update weather & rain particle animation
-    weatherManager.update(dt, trainPhysics.currentPosition);
+    weatherManager.update(dt, trainPhysics.currentPosition, camera);
 
     // Update environment nearby LOD
     envManager.update(trainPhysics.currentPosition);

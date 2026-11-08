@@ -117,8 +117,9 @@ class TrainPhysics {
       this.trackSpline.getTangentAt(rCarU, data.rearTangent);
     }
 
-    // Notify Audio Engine
-    TrainAudio.update(this.speed, this.speed > 0.05, delta);
+    // Notify Audio Engine (with bridge detection)
+    const onBridge = (this.currentPosition.y > 2.0 && Math.abs(this.currentPosition.z) < 250);
+    TrainAudio.update(this.speed, this.speed > 0.05, delta, onBridge);
   }
 
   getSpeedKmh() {

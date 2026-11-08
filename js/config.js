@@ -40,7 +40,7 @@ window.GAME_CONFIG = {
   camera: {
     fov: 55,
     near: 0.1,
-    far: 5000,
+    far: 2500,
     defaultDistance: 32,
     minDistance: 6,
     maxDistance: 160,

@@ -1,4 +1,5 @@
-// track.js - Lightweight railway track: TubeGeometry rails, reduced sleepers, NO ballast wall
+// track.js - Continuous Infinity Loop (Figure-8) Railway Circuit
+// Features a grade-separated bridge overpass (4.8m clearance), smooth mild curves, continuous ballast & sleepers
 class TrackSystem {
   constructor(scene) {
     this.scene = scene;
@@ -12,53 +13,63 @@ class TrackSystem {
     this.buildRails();
     this.buildSleepers();
     this.buildBallastStrip();
+    this.buildBridgeOverpass();
   }
 
   initSpline() {
-    const L = GAME_CONFIG.track.straightLength * 0.5; // 1200m each side
-    const X = 280.0;
-    const R = GAME_CONFIG.track.curveRadius; // 420m mild curve radius
+    // Elegant Figure-8 Infinity Circuit (Lemniscate-grade continuous loop)
+    // Train runs endlessly through two scenic village lobes and crosses over itself via a scenic bridge
+    const L = 950.0; // Distance of each loop apex
+    const W = 320.0; // Width of loop sweep
 
     const points = [
-      new THREE.Vector3( -X, 0.0, -L ),
-      new THREE.Vector3( -X, 0.0, -L * 0.6 ),
-      new THREE.Vector3( -X, 0.0, -L * 0.2 ),
-      new THREE.Vector3( -X, 0.0,  L * 0.2 ),
-      new THREE.Vector3( -X, 0.0,  L * 0.6 ),
-      new THREE.Vector3( -X, 0.0,  L ),
+      // 1. Lower Track crossing center at Y = 0.0m (Ground level, heading South-East)
+      new THREE.Vector3( -120.0, 0.0, -200.0 ),
+      new THREE.Vector3(    0.0, 0.0,    0.0 ),
+      new THREE.Vector3(  120.0, 0.0,  200.0 ),
 
-      new THREE.Vector3( -X * 0.85, 0.0, L + R * 0.45 ),
-      new THREE.Vector3( -X * 0.45, 0.0, L + R * 0.80 ),
-      new THREE.Vector3(  0.0,      0.0, L + R * 0.95 ),
-      new THREE.Vector3(  X * 0.45, 0.0, L + R * 0.80 ),
-      new THREE.Vector3(  X * 0.85, 0.0, L + R * 0.45 ),
+      // 2. South Village Loop (Sweeping through lush paddy & mustard fields)
+      new THREE.Vector3(  W * 0.7, 0.0,  500.0 ),
+      new THREE.Vector3(  W,       0.0,  800.0 ),
+      new THREE.Vector3(  W * 0.8, 0.0,  L + 120.0 ),
+      new THREE.Vector3(  W * 0.4, 0.0,  L + 280.0 ),
+      new THREE.Vector3(    0.0,   0.0,  L + 340.0 ),
+      new THREE.Vector3( -W * 0.4, 0.0,  L + 280.0 ),
+      new THREE.Vector3( -W * 0.8, 0.0,  L + 120.0 ),
+      new THREE.Vector3( -W,       0.0,  800.0 ),
 
-      new THREE.Vector3(  X, 0.0,  L ),
-      new THREE.Vector3(  X, 0.0,  L * 0.6 ),
-      new THREE.Vector3(  X, 0.0,  L * 0.2 ),
-      new THREE.Vector3(  X, 0.0, -L * 0.2 ),
-      new THREE.Vector3(  X, 0.0, -L * 0.6 ),
-      new THREE.Vector3(  X, 0.0, -L ),
+      // 3. Gentle incline climbing towards central railway bridge overpass
+      new THREE.Vector3( -W * 0.65, 1.2, 500.0 ),
+      new THREE.Vector3( -120.0,   3.2, 200.0 ),
 
-      new THREE.Vector3(  X * 0.85, 0.0, -L - R * 0.45 ),
-      new THREE.Vector3(  X * 0.45, 0.0, -L - R * 0.80 ),
-      new THREE.Vector3(  0.0,      0.0, -L - R * 0.95 ),
-      new THREE.Vector3( -X * 0.45, 0.0, -L - R * 0.80 ),
-      new THREE.Vector3( -X * 0.85, 0.0, -L - R * 0.45 )
+      // 4. Upper Bridge Overpass at Y = 4.8m (Crossing directly over lower track at 0.0m)
+      new THREE.Vector3(    0.0,   4.8,   0.0 ),
+
+      // 5. Gentle decline into North Village Loop
+      new THREE.Vector3(  120.0,   3.2, -200.0 ),
+      new THREE.Vector3(  W * 0.65, 1.2, -500.0 ),
+
+      // 6. North Village Loop (Sweeping through lush homesteads & ponds)
+      new THREE.Vector3(  W,       0.0, -800.0 ),
+      new THREE.Vector3(  W * 0.8, 0.0, -L - 120.0 ),
+      new THREE.Vector3(  W * 0.4, 0.0, -L - 280.0 ),
+      new THREE.Vector3(    0.0,   0.0, -L - 340.0 ),
+      new THREE.Vector3( -W * 0.4, 0.0, -L - 280.0 ),
+      new THREE.Vector3( -W * 0.8, 0.0, -L - 120.0 ),
+      new THREE.Vector3( -W,       0.0, -800.0 ),
+      new THREE.Vector3( -W * 0.7, 0.0, -500.0 )
     ];
 
+    // Smooth closed 3D Catmull-Rom spline
     this.spline = new THREE.CatmullRomCurve3(points, true, 'centripetal', 0.15);
   }
 
   buildRails() {
     const halfGauge = GAME_CONFIG.track.gauge * 0.5;
-    // Drastically reduced samples: 300 instead of 1200
-    const samples = 300;
+    const samples = 350; // Optimized sample count for silky smooth curves
 
-    const railMat = new THREE.MeshStandardMaterial({
-      color: GAME_CONFIG.colors.rails,
-      roughness: 0.28,
-      metalness: 0.88
+    const railMat = new THREE.MeshLambertMaterial({
+      color: GAME_CONFIG.colors.rails
     });
 
     ['left', 'right'].forEach(side => {
@@ -76,7 +87,7 @@ class TrackSystem {
         railCurvePoints.push(railPt);
       }
 
-      // Use TubeGeometry with a simple round cross-section — far fewer verts than ExtrudeGeometry
+      // Smooth tube geometry with 5 radial segments (fast & lightweight)
       const railCurve = new THREE.CatmullRomCurve3(railCurvePoints, true);
       const railGeom = new THREE.TubeGeometry(railCurve, samples, 0.045, 5, true);
       const railMesh = new THREE.Mesh(railGeom, railMat);
@@ -88,10 +99,8 @@ class TrackSystem {
 
   buildSleepers() {
     const totalLength = this.spline.getLength();
-    // Increased spacing from 0.85m to 2.4m — reduces instances ~3x
     const sleeperSpacing = 2.4;
     const count = Math.floor(totalLength / sleeperSpacing);
-    const halfGauge = GAME_CONFIG.track.gauge * 0.5;
 
     const sleeperGeom = new THREE.BoxGeometry(
       GAME_CONFIG.track.sleeperWidth,
@@ -99,10 +108,8 @@ class TrackSystem {
       GAME_CONFIG.track.sleeperDepth
     );
 
-    const sleeperMat = new THREE.MeshStandardMaterial({
-      color: GAME_CONFIG.colors.sleepers,
-      roughness: 0.85,
-      metalness: 0.05
+    const sleeperMat = new THREE.MeshLambertMaterial({
+      color: GAME_CONFIG.colors.sleepers
     });
 
     const instancedSleepers = new THREE.InstancedMesh(sleeperGeom, sleeperMat, count);
@@ -115,43 +122,38 @@ class TrackSystem {
       const u = i / count;
       const pos = this.spline.getPointAt(u);
       const tangent = this.spline.getTangentAt(u);
-      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
 
       dummy.position.copy(pos);
       dummy.position.y += GAME_CONFIG.track.sleeperHeight * 0.5;
-      dummy.rotation.y = Math.atan2(tangent.x, tangent.z);
+
+      // Align pitch and yaw with track 3D elevation
+      const pitch = -Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
+      dummy.rotation.set(pitch, Math.atan2(tangent.x, tangent.z), 0, 'YXZ');
       dummy.updateMatrix();
       instancedSleepers.setMatrixAt(i, dummy.matrix);
 
-      // Store transform for physics/sound use
       this.sleeperTransforms.push({
         position: pos.clone(),
         tangent: tangent.clone(),
-        normal: normal.clone(),
         index: i
       });
     }
 
     instancedSleepers.instanceMatrix.needsUpdate = true;
     this.trackGroup.add(instancedSleepers);
-    // Tie plates removed — too many draw calls for minimal visual gain
   }
 
   buildBallastStrip() {
-    // Replace the heavy ExtrudeGeometry ballast wall with a simple flat plane strip
-    // This provides the visual of a gravel embankment without any 3D wall geometry
     const totalLength = this.spline.getLength();
-    const spacing = 4.0; // One flat patch every 4m
+    const spacing = 4.0;
     const count = Math.floor(totalLength / spacing);
 
-    const patchW = GAME_CONFIG.track.ballastWidth + 3.0; // Slightly wider than track gauge
-    const patchGeom = new THREE.PlaneGeometry(patchW, spacing * 1.1);
+    const patchW = GAME_CONFIG.track.ballastWidth + 2.5;
+    const patchGeom = new THREE.PlaneGeometry(patchW, spacing * 1.05);
     patchGeom.rotateX(-Math.PI * 0.5);
 
-    const patchMat = new THREE.MeshStandardMaterial({
-      color: GAME_CONFIG.colors.ballast,
-      roughness: 0.95,
-      metalness: 0.02
+    const patchMat = new THREE.MeshLambertMaterial({
+      color: GAME_CONFIG.colors.ballast
     });
 
     const instancedBallast = new THREE.InstancedMesh(patchGeom, patchMat, count);
@@ -165,14 +167,44 @@ class TrackSystem {
       const tangent = this.spline.getTangentAt(u);
 
       dummy.position.copy(pos);
-      dummy.position.y = 0.02; // Slightly above ground — no raised wall
-      dummy.rotation.y = Math.atan2(tangent.x, tangent.z);
+      dummy.position.y = pos.y + 0.02; // Follows 3D track elevation seamlessly
+
+      const pitch = -Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
+      dummy.rotation.set(pitch, Math.atan2(tangent.x, tangent.z), 0, 'YXZ');
       dummy.updateMatrix();
       instancedBallast.setMatrixAt(i, dummy.matrix);
     }
 
     instancedBallast.instanceMatrix.needsUpdate = true;
     this.trackGroup.add(instancedBallast);
+  }
+
+  // Scenic Steel Girder Bridge at the Center Crossing (where upper track flies over lower track)
+  buildBridgeOverpass() {
+    const concreteMat = new THREE.MeshLambertMaterial({ color: 0x8a847c });
+    const steelMat = new THREE.MeshLambertMaterial({ color: 0x3d4b54 });
+
+    // Concrete bridge pier pillars supporting the upper track
+    [-1.8, 1.8].forEach(px => {
+      const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.65, 4.6, 8), concreteMat);
+      pier.position.set(px, 2.3, 0);
+      this.trackGroup.add(pier);
+    });
+
+    // Steel Girder Bed under upper track
+    const girder = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.5, 45.0), steelMat);
+    girder.position.set(0, 4.45, 0);
+    // Align with upper track crossing angle
+    girder.rotation.y = -Math.atan2(120, 200);
+    this.trackGroup.add(girder);
+
+    // Steel side railings along the bridge
+    [-1.9, 1.9].forEach(gx => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 44.0), steelMat);
+      rail.position.set(gx, 5.15, 0);
+      rail.rotation.y = -Math.atan2(120, 200);
+      this.trackGroup.add(rail);
+    });
   }
 }
 

@@ -197,7 +197,7 @@ class EnvironmentManager {
   // Entire forest rendered in only 2 draw calls total!
   initLightweightInstancedTrees() {
     const spline = this.trackSystem.spline;
-    const treeCount = 90; // Balanced density along the scenic track
+    const treeCount = 140; // Dense, scenic distribution around entire infinity circuit
 
     // 1. Instanced Trunks: 5-sided cylinder (super low-poly, silky fast)
     const trunkGeo = new THREE.CylinderGeometry(0.18, 0.36, 5.2, 5);
@@ -334,11 +334,17 @@ class EnvironmentManager {
     const roofMat = new THREE.MeshLambertMaterial({ color: 0x823b2c });
 
     const cottageSites = [
-      { u: 0.06, side: -1, dist: 22.0 },
-      { u: 0.22, side:  1, dist: 24.0 },
-      { u: 0.42, side: -1, dist: 20.0 },
-      { u: 0.62, side:  1, dist: 26.0 },
-      { u: 0.78, side: -1, dist: 24.0 },
+      { u: 0.05, side: -1, dist: 22.0 },
+      { u: 0.12, side:  1, dist: 24.0 },
+      { u: 0.20, side: -1, dist: 20.0 },
+      { u: 0.28, side:  1, dist: 26.0 },
+      { u: 0.36, side: -1, dist: 24.0 },
+      { u: 0.44, side:  1, dist: 22.0 },
+      { u: 0.52, side: -1, dist: 22.0 },
+      { u: 0.60, side:  1, dist: 24.0 },
+      { u: 0.68, side: -1, dist: 20.0 },
+      { u: 0.76, side:  1, dist: 26.0 },
+      { u: 0.84, side: -1, dist: 24.0 },
       { u: 0.92, side:  1, dist: 22.0 }
     ];
 
@@ -386,9 +392,12 @@ class EnvironmentManager {
     });
   }
 
-  // Dynamic nearby LOD update (called per frame to ensure smooth performance)
+  // Dynamic nearby LOD update (Keeps ground centered under train so world never ends)
   update(targetPosition) {
-    // Ground and track alignment can be adjusted if needed
+    if (this.groundMesh && targetPosition) {
+      this.groundMesh.position.x = targetPosition.x;
+      this.groundMesh.position.z = targetPosition.z;
+    }
   }
 
   setNight(isNight) {

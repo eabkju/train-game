@@ -1,6 +1,5 @@
 // audio.js - High-performance procedural train & environmental audio engine
-// Based on "Standalone Train Audio Engine.js" & "Train Sound Effects Technical Guide.md"
-// 100% offline procedural Web Audio API with zero GC stutter, master dynamics compressor & shared noise buffers
+// Features zero GC allocations, master dynamics compressor, and master noise gate (zero speaker noise when sound is off)
 class TrainAudioEngine {
   constructor() {
     this.ctx = null;
@@ -12,6 +11,7 @@ class TrainAudioEngine {
     this.osc2 = null;
     this.engFilter = null;
     this.engAmp = null;
+    this.engineBus = null; // Master engine isolation gate
     this.lfo = null;
     this.lfoG = null;
     this.turboG = null;
@@ -26,7 +26,7 @@ class TrainAudioEngine {
     this.hornOsc1 = null;
     this.hornOsc2 = null;
 
-    // Shared noise buffer (reused for wind, turbo, rain, rumble, and air brakes to prevent GC lag)
+    // Shared noise buffer (reused for wind, turbo, rain, rumble, and air brakes)
     this.sharedNoiseBuffer = null;
 
     // State tracking
@@ -36,9 +36,6 @@ class TrainAudioEngine {
     this.isRaining = false;
   }
 
-  /**
-   * Generates a 2-second white noise buffer once at startup
-   */
   createNoiseBuffer() {
     const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 2, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -48,10 +45,6 @@ class TrainAudioEngine {
     return buffer;
   }
 
-  /**
-   * Generates a 1.2-second rhythmic 4-axle bogie rail-joint clack buffer
-   * Timed for front bogie + rear bogie hits at [0.00s, 0.14s, 0.60s, 0.74s]
-   */
   createWheelClackBuffer() {
     const sr = this.ctx.sampleRate;
     const len = Math.floor(sr * 1.2);
@@ -76,9 +69,6 @@ class TrainAudioEngine {
     return buffer;
   }
 
-  /**
-   * Initializes the audio context and signal chains on first user gesture
-   */
   init() {
     if (this.initialized) {
       if (this.ctx && this.ctx.state === 'suspended') {
@@ -103,19 +93,19 @@ class TrainAudioEngine {
       this.comp.ratio.value = 6;
       this.comp.connect(ctx.destination);
 
-      // Master gain
+      // Master output gain (starts at 0.0 to prevent any speaker noise until activity)
       this.master = ctx.createGain();
-      this.master.gain.value = 0.9;
+      this.master.gain.value = 0.0;
       this.master.connect(this.comp);
 
-      // 2. Diesel-Electric Engine (Dual Sawtooth Fifth Interval + LFO Chug)
+      // 2. Diesel Engine (Dual Sawtooth Fifth Interval + LFO Chug + Master Engine Isolation Bus)
       this.osc1 = ctx.createOscillator();
       this.osc1.type = 'sawtooth';
       this.osc1.frequency.value = 32;
 
       this.osc2 = ctx.createOscillator();
       this.osc2.type = 'sawtooth';
-      this.osc2.frequency.value = 48; // Musical fifth interval for heavy mechanical roar
+      this.osc2.frequency.value = 48;
 
       this.engFilter = ctx.createBiquadFilter();
       this.engFilter.type = 'lowpass';
@@ -123,16 +113,20 @@ class TrainAudioEngine {
       this.engFilter.Q.value = 2.5;
 
       this.engAmp = ctx.createGain();
-      this.engAmp.gain.value = 0.0001; // Silent until started
+      this.engAmp.gain.value = 0.0; // Strictly 0.0 when off
 
       this.lfo = ctx.createOscillator();
       this.lfo.type = 'square';
       this.lfo.frequency.value = 8;
 
       this.lfoG = ctx.createGain();
-      this.lfoG.gain.value = 0.06;
+      this.lfoG.gain.value = 0.0; // Strictly 0.0 when off (FIXES LFO noise leak bug)
       this.lfo.connect(this.lfoG);
       this.lfoG.connect(this.engAmp.gain);
+
+      // Isolation bus: completely disconnects/mutes engine when not running
+      this.engineBus = ctx.createGain();
+      this.engineBus.gain.value = 0.0;
 
       const engMix = ctx.createGain();
       engMix.gain.value = 0.5;
@@ -140,7 +134,8 @@ class TrainAudioEngine {
       this.osc2.connect(engMix);
       engMix.connect(this.engFilter);
       this.engFilter.connect(this.engAmp);
-      this.engAmp.connect(this.master);
+      this.engAmp.connect(this.engineBus);
+      this.engineBus.connect(this.master);
 
       this.osc1.start();
       this.osc2.start();
@@ -158,13 +153,13 @@ class TrainAudioEngine {
       turboFilter.frequency.value = 1900;
       turboFilter.Q.value = 8;
       this.turboG = ctx.createGain();
-      this.turboG.gain.value = 0.0001;
+      this.turboG.gain.value = 0.0;
       turboSrc.connect(turboFilter);
       turboFilter.connect(this.turboG);
       this.turboG.connect(this.master);
       turboSrc.start();
 
-      // 4. Wheel-on-Rail Clack Loop (Playback rate scales with speed)
+      // 4. Wheel-on-Rail Clack Loop
       this.wheel = ctx.createBufferSource();
       this.wheel.buffer = this.createWheelClackBuffer();
       this.wheel.loop = true;
@@ -172,7 +167,7 @@ class TrainAudioEngine {
       wheelHP.type = 'highpass';
       wheelHP.frequency.value = 65;
       this.wheelG = ctx.createGain();
-      this.wheelG.gain.value = 0;
+      this.wheelG.gain.value = 0.0;
       this.wheel.connect(wheelHP);
       wheelHP.connect(this.wheelG);
       this.wheelG.connect(this.master);
@@ -186,7 +181,7 @@ class TrainAudioEngine {
       rainFilter.type = 'lowpass';
       rainFilter.frequency.value = 1400;
       this.rainG = ctx.createGain();
-      this.rainG.gain.value = 0;
+      this.rainG.gain.value = 0.0;
       rainSrc.connect(rainFilter);
       rainFilter.connect(this.rainG);
       this.rainG.connect(this.master);
@@ -200,7 +195,7 @@ class TrainAudioEngine {
       windFilter.type = 'lowpass';
       windFilter.frequency.value = 800;
       this.windG = ctx.createGain();
-      this.windG.gain.value = 0;
+      this.windG.gain.value = 0.0;
       windSrc.connect(windFilter);
       windFilter.connect(this.windG);
       this.windG.connect(this.master);
@@ -214,7 +209,7 @@ class TrainAudioEngine {
       rumFilter.type = 'lowpass';
       rumFilter.frequency.value = 110;
       this.rumG = ctx.createGain();
-      this.rumG.gain.value = 0;
+      this.rumG.gain.value = 0.0;
       rumSrc.connect(rumFilter);
       rumFilter.connect(this.rumG);
       this.rumG.connect(this.master);
@@ -236,16 +231,16 @@ class TrainAudioEngine {
   }
 
   /**
-   * Per-frame real-time telemetry update (Zero allocation, 60fps locked)
+   * Real-time telemetry update with zero GC allocations and noise gate
    */
-  update(speedMs, isMoving, dt) {
+  update(speedMs, isMoving, dt, onBridge = false) {
     if (!this.ctx || !this.initialized) return;
     const t = this.ctx.currentTime;
     const sp = Math.min(Math.max(0, speedMs || 0), 35);
     const isRunning = this.isEngineRunning;
     const thr = isRunning ? Math.min(1.0, 0.15 + sp / 28) : 0;
 
-    // 1. Engine RPM & Chug rate
+    // 1. Engine RPM & Chug rate (Strictly 0.0 when engine off)
     if (this.osc1 && this.osc2) {
       this.osc1.frequency.setTargetAtTime(32 + thr * 45, t, 0.15);
       this.osc2.frequency.setTargetAtTime(48 + thr * 68, t, 0.15);
@@ -253,37 +248,53 @@ class TrainAudioEngine {
     if (this.engFilter) {
       this.engFilter.frequency.setTargetAtTime(200 + thr * 650, t, 0.15);
     }
-    if (this.engAmp) {
-      const targetEngAmp = isRunning ? (0.10 + 0.18 * thr) : 0.0001;
-      this.engAmp.gain.setTargetAtTime(targetEngAmp, t, 0.12);
-    }
-    if (this.lfo) {
-      this.lfo.frequency.setTargetAtTime(6 + thr * 16, t, 0.15);
+
+    if (isRunning) {
+      if (this.engineBus) this.engineBus.gain.setTargetAtTime(1.0, t, 0.12);
+      if (this.lfoG) this.lfoG.gain.setTargetAtTime(0.06, t, 0.12);
+      if (this.engAmp) this.engAmp.gain.setTargetAtTime(0.10 + 0.18 * thr, t, 0.12);
+      if (this.lfo) this.lfo.frequency.setTargetAtTime(6 + thr * 16, t, 0.15);
+    } else {
+      // FULL ENGINE SILENCE: zero LFO depth, zero amp, zero bus gain
+      if (this.engineBus) this.engineBus.gain.setTargetAtTime(0.0, t, 0.08);
+      if (this.lfoG) this.lfoG.gain.setTargetAtTime(0.0, t, 0.08);
+      if (this.engAmp) this.engAmp.gain.setTargetAtTime(0.0, t, 0.08);
     }
 
-    // 2. Turbocharger whine (kicks in when accelerating above 4 m/s)
+    // 2. Turbocharger whine (Only active when moving above 4 m/s)
     if (this.turboG) {
-      const targetTurbo = isRunning && sp > 4 ? (0.02 + thr * 0.04) : 0.0001;
+      const targetTurbo = isRunning && sp > 4 ? (0.02 + thr * 0.04) : 0.0;
       this.turboG.gain.setTargetAtTime(targetTurbo, t, 0.1);
     }
 
     // 3. Wheel-on-rail clack tempo and volume
     if (this.wheel && this.wheelG) {
       this.wheel.playbackRate.setTargetAtTime(Math.max(0.01, sp / 13.5), t, 0.05);
-      this.wheelG.gain.setTargetAtTime(Math.min(0.85, sp / 15), t, 0.1);
+      const targetWheel = sp > 0.5 ? Math.min(0.85, sp / 15) : 0.0;
+      this.wheelG.gain.setTargetAtTime(targetWheel, t, 0.1);
     }
 
     // 4. Aerodynamic wind and track rumble
     if (this.windG) {
-      this.windG.gain.setTargetAtTime(Math.min(0.2, sp / 140), t, 0.2);
+      const targetWind = sp > 6 ? Math.min(0.2, sp / 140) : 0.0;
+      this.windG.gain.setTargetAtTime(targetWind, t, 0.2);
     }
     if (this.rumG) {
-      this.rumG.gain.setTargetAtTime(Math.min(0.45, sp / 35), t, 0.2);
+      const bridgeBoost = onBridge ? 0.35 : 0.0;
+      const targetRum = sp > 0.5 ? (Math.min(0.45, sp / 35) + bridgeBoost) : 0.0;
+      this.rumG.gain.setTargetAtTime(targetRum, t, 0.2);
     }
 
     // 5. Weather rain sound
     if (this.rainG) {
-      this.rainG.gain.setTargetAtTime(this.isRaining ? 0.24 : 0.0001, t, 0.3);
+      this.rainG.gain.setTargetAtTime(this.isRaining ? 0.24 : 0.0, t, 0.3);
+    }
+
+    // 6. MASTER NOISE GATE: When no audio is playing, drop master to strictly 0.0
+    // This permanently eliminates any low-level background hiss/noise from the speaker
+    const hasActiveAudio = isRunning || this.isRaining || this.isHornPlaying || sp > 0.5;
+    if (this.master) {
+      this.master.gain.setTargetAtTime(hasActiveAudio ? 0.9 : 0.0, t, 0.12);
     }
   }
 
@@ -294,19 +305,38 @@ class TrainAudioEngine {
     const now = this.ctx.currentTime;
 
     if (active) {
-      // Natural diesel startup: initial starter ramp
+      // Bring master bus online immediately
+      if (this.master) {
+        this.master.gain.cancelScheduledValues(now);
+        this.master.gain.setValueAtTime(this.master.gain.value, now);
+        this.master.gain.linearRampToValueAtTime(0.9, now + 0.1);
+      }
+      if (this.engineBus) {
+        this.engineBus.gain.cancelScheduledValues(now);
+        this.engineBus.gain.setValueAtTime(0.0, now);
+        this.engineBus.gain.linearRampToValueAtTime(1.0, now + 0.5);
+      }
+      if (this.lfoG) {
+        this.lfoG.gain.setTargetAtTime(0.06, now, 0.4);
+      }
       if (this.engAmp) {
         this.engAmp.gain.cancelScheduledValues(now);
-        this.engAmp.gain.setValueAtTime(0.0001, now);
+        this.engAmp.gain.setValueAtTime(0.0, now);
         this.engAmp.gain.linearRampToValueAtTime(0.12, now + 0.8);
       }
     } else {
-      // Shutdown: trigger pneumatic air brake hiss when stopping
+      // Natural shutdown: trigger pneumatic air brake hiss when stopping
       this.airHiss();
       if (this.engAmp) {
         this.engAmp.gain.cancelScheduledValues(now);
         this.engAmp.gain.setValueAtTime(this.engAmp.gain.value, now);
-        this.engAmp.gain.linearRampToValueAtTime(0.0001, now + 1.2);
+        this.engAmp.gain.linearRampToValueAtTime(0.0, now + 1.2);
+      }
+      if (this.lfoG) {
+        this.lfoG.gain.setTargetAtTime(0.0, now + 0.8, 0.3);
+      }
+      if (this.engineBus) {
+        this.engineBus.gain.setTargetAtTime(0.0, now + 1.0, 0.3);
       }
     }
   }
@@ -318,6 +348,7 @@ class TrainAudioEngine {
     const now = this.ctx.currentTime;
 
     if (active) {
+      if (this.master) this.master.gain.setTargetAtTime(0.9, now, 0.05);
       this.playRainStartSfx(now);
     } else {
       this.playRainStopSfx(now);
@@ -326,14 +357,12 @@ class TrainAudioEngine {
     if (this.rainG) {
       this.rainG.gain.cancelScheduledValues(now);
       this.rainG.gain.setValueAtTime(this.rainG.gain.value, now);
-      this.rainG.gain.setTargetAtTime(active ? 0.24 : 0.0001, now, 0.35);
+      this.rainG.gain.setTargetAtTime(active ? 0.24 : 0.0, now, 0.35);
     }
   }
 
   playRainStartSfx(time) {
     if (!this.ctx) return;
-    const ctx = this.ctx;
-    // Onset droplet ping cluster
     const dropOffsets = [0.03, 0.09, 0.16, 0.24, 0.33, 0.42];
     dropOffsets.forEach(dt => {
       this.synthesizeDroplet(time + dt, 1400 + Math.random() * 1000, 0.07);
@@ -342,7 +371,6 @@ class TrainAudioEngine {
 
   playRainStopSfx(time) {
     if (!this.ctx) return;
-    // Trailing sporadic drips tapering into quiet
     const trailingOffsets = [0.15, 0.40, 0.75, 1.25];
     trailingOffsets.forEach((dt, idx) => {
       this.synthesizeDroplet(time + dt, 1200 + Math.random() * 800, Math.max(0.015, 0.06 - idx * 0.012));
@@ -374,10 +402,6 @@ class TrainAudioEngine {
     src.start(dropTime);
   }
 
-  /**
-   * Dual-chime locomotive horn (F4 349.23 Hz + A4 440.0 Hz major third)
-   * With 1800 Hz lowpass filter to warm brassy harmonics
-   */
   startHorn() {
     this.horn(true);
   }
@@ -392,6 +416,7 @@ class TrainAudioEngine {
     const t = this.ctx.currentTime;
 
     if (active) {
+      if (this.master) this.master.gain.setTargetAtTime(0.9, t, 0.02);
       if (!this.hornG) {
         this.hornG = this.ctx.createGain();
         this.hornG.gain.setValueAtTime(0, t);
@@ -439,13 +464,12 @@ class TrainAudioEngine {
     }
   }
 
-  /**
-   * One-shot pneumatic air brake release hiss (Highpass 2800 Hz)
-   */
   airHiss() {
     this.ensureContext();
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
+
+    if (this.master) this.master.gain.setTargetAtTime(0.9, t, 0.02);
 
     const src = this.ctx.createBufferSource();
     src.buffer = this.sharedNoiseBuffer || this.createNoiseBuffer();
@@ -457,7 +481,7 @@ class TrainAudioEngine {
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0, t);
     gain.gain.linearRampToValueAtTime(0.24, t + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.35);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.35);
 
     src.connect(filter);
     filter.connect(gain);

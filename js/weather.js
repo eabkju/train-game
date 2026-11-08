@@ -47,13 +47,13 @@ class WeatherManager {
     this.moonLight.castShadow = false;
     this.scene.add(this.moonLight);
 
-    // Distance fog: Crystal clear near train, smoothly blending into horizon
-    this.scene.fog = new THREE.Fog(0xb8d5f2, 150, 800);
+    // Distance fog: Smooth atmospheric horizon, crystal clear near train
+    this.scene.fog = new THREE.Fog(0xb8d5f2, 200, 1400);
   }
 
   initSky() {
-    // 1. Sky Dome Hemisphere
-    const skyGeom = new THREE.SphereGeometry(650, 32, 24);
+    // 1. Sky Dome Hemisphere (Expansive 2000m radius dome)
+    const skyGeom = new THREE.SphereGeometry(2000, 32, 24);
     const skyMat = new THREE.MeshBasicMaterial({
       color: GAME_CONFIG.colors.daySky,
       side: THREE.BackSide
@@ -70,7 +70,7 @@ class WeatherManager {
       const v = Math.random();
       const theta = u * 2.0 * Math.PI;
       const phi = Math.acos(2.0 * v - 1.0);
-      const r = 620;
+      const r = 1950;
       // Only place stars above horizon
       const y = Math.abs(r * Math.cos(phi)) + 15;
       const x = r * Math.sin(phi) * Math.cos(theta);
@@ -168,8 +168,8 @@ class WeatherManager {
 
     const fogColor = this.isRaining ? 0x8ea2b8 : 0xb8d5f2;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.near = this.isRaining ? 80 : 150;
-    this.scene.fog.far = this.isRaining ? 550 : 800;
+    this.scene.fog.near = this.isRaining ? 120 : 250;
+    this.scene.fog.far = this.isRaining ? 800 : 1600;
   }
 
   applyNightMode() {
@@ -187,8 +187,8 @@ class WeatherManager {
 
     const fogColor = this.isRaining ? 0x060c17 : 0x0a1424;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.near = this.isRaining ? 70 : 120;
-    this.scene.fog.far = this.isRaining ? 480 : 700;
+    this.scene.fog.near = this.isRaining ? 100 : 200;
+    this.scene.fog.far = this.isRaining ? 700 : 1400;
   }
 
   toggleRain() {
@@ -212,7 +212,32 @@ class WeatherManager {
     }
   }
 
-  update(dt, targetPosition) {
+  update(dt, targetPosition, camera) {
+    // 1. Move Sky Dome, Celestials & Dynamic Lighting with the player
+    // This permanently ensures the world never enters an un-designed dark void!
+    if (targetPosition) {
+      if (this.skyDome) {
+        this.skyDome.position.set(targetPosition.x, 0, targetPosition.z);
+      }
+      if (this.stars) {
+        this.stars.position.set(targetPosition.x, 0, targetPosition.z);
+      }
+      if (this.moonMesh) {
+        this.moonMesh.position.set(targetPosition.x - 220, 350, targetPosition.z - 280);
+      }
+      if (this.sunLight) {
+        this.sunLight.position.set(targetPosition.x + 80, 110, targetPosition.z + 60);
+        this.sunLight.target.position.copy(targetPosition);
+      }
+      if (this.moonLight) {
+        this.moonLight.position.set(targetPosition.x - 60, 95, targetPosition.z - 70);
+        this.moonLight.target.position.copy(targetPosition);
+      }
+      if (this.hemiLight) {
+        this.hemiLight.position.set(targetPosition.x, 80, targetPosition.z);
+      }
+    }
+
     // Star twinkle effect
     if (this.isNight && this.stars) {
       this.stars.rotation.y += dt * 0.002;
