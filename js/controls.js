@@ -10,9 +10,15 @@ class GameControls {
 
     // Camera Spherical Orbit Parameters
     this.orbitRadius = GAME_CONFIG.camera.defaultDistance; // ~24m
+    this.targetRadius = this.orbitRadius; // Smooth zoom target
     this.orbitTheta = GAME_CONFIG.camera.defaultYaw;       // Azimuth
     this.orbitPhi = Math.PI * 0.5 - GAME_CONFIG.camera.defaultPitch; // Polar angle
     this.targetPos = new THREE.Vector3();
+
+    // Inertia / Momentum for smooth orbit
+    this.velTheta = 0; // Angular velocity azimuth
+    this.velPhi = 0;   // Angular velocity elevation
+    this.inertiaDamping = 0.88; // Decay factor per frame
 
     // Interaction states
     this.isPointerDown = false;
@@ -232,21 +238,23 @@ class GameControls {
   }
 
   bindCameraButtons() {
-    // Zoom In
+    // Smooth Zoom In
     this.btnZoomIn.addEventListener('click', () => {
-      this.orbitRadius = Math.max(this.orbitRadius - 3.5, GAME_CONFIG.camera.minDistance);
+      this.targetRadius = Math.max(this.targetRadius - 6.0, GAME_CONFIG.camera.minDistance);
     });
 
-    // Zoom Out
+    // Smooth Zoom Out
     this.btnZoomOut.addEventListener('click', () => {
-      this.orbitRadius = Math.min(this.orbitRadius + 4.5, GAME_CONFIG.camera.maxDistance);
+      this.targetRadius = Math.min(this.targetRadius + 6.0, GAME_CONFIG.camera.maxDistance);
     });
 
-    // Recenter Camera Focus
+    // Recenter Camera Focus smoothly
     this.btnRecenter.addEventListener('click', () => {
-      this.orbitRadius = GAME_CONFIG.camera.defaultDistance;
+      this.targetRadius = GAME_CONFIG.camera.defaultDistance;
       this.orbitTheta = GAME_CONFIG.camera.defaultYaw;
       this.orbitPhi = Math.PI * 0.5 - GAME_CONFIG.camera.defaultPitch;
+      this.velTheta = 0;
+      this.velPhi = 0;
     });
   }
 
@@ -278,11 +286,13 @@ class GameControls {
   initCameraControls() {
     const el = this.domElement;
 
-    // Mouse Drag for 360° Orbit Rotation
+    // Mouse Drag for 360° Orbit Rotation with momentum
     el.addEventListener('mousedown', (e) => {
       if (e.target !== el && e.target.tagName !== 'CANVAS') return;
       this.isPointerDown = true;
       this.previousPointerPos = { x: e.clientX, y: e.clientY };
+      this.velTheta = 0;
+      this.velPhi = 0;
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -290,9 +300,11 @@ class GameControls {
       const dx = e.clientX - this.previousPointerPos.x;
       const dy = e.clientY - this.previousPointerPos.y;
 
-      this.orbitTheta -= dx * 0.007; // 360 degree horizontal orbit
-      this.orbitPhi -= dy * 0.005;   // Vertical pitch
-      // Clamp pitch to avoid gimbal flip or underground views
+      this.velTheta = -dx * 0.006; // 360 degree horizontal orbit angular velocity
+      this.velPhi = -dy * 0.005;   // Vertical pitch angular velocity
+
+      this.orbitTheta += this.velTheta;
+      this.orbitPhi += this.velPhi;
       this.orbitPhi = Math.max(0.12, Math.min(Math.PI * 0.48, this.orbitPhi));
 
       this.previousPointerPos = { x: e.clientX, y: e.clientY };
@@ -302,22 +314,24 @@ class GameControls {
       this.isPointerDown = false;
     });
 
-    // Mouse Wheel Zoom
+    // Mouse Wheel Smooth Zoom
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const zoomFactor = e.deltaY * 0.04;
-      this.orbitRadius = Math.max(
+      const zoomFactor = e.deltaY * 0.05;
+      this.targetRadius = Math.max(
         GAME_CONFIG.camera.minDistance,
-        Math.min(GAME_CONFIG.camera.maxDistance, this.orbitRadius + zoomFactor)
+        Math.min(GAME_CONFIG.camera.maxDistance, this.targetRadius + zoomFactor)
       );
     }, { passive: false });
 
-    // Touch Support: Orbit & Two-finger Pinch-to-Zoom
+    // Touch Support: 360° Orbit & Two-finger Pinch-to-Zoom
     el.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         this.isPointerDown = true;
         this.isPinching = false;
         this.previousPointerPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        this.velTheta = 0;
+        this.velPhi = 0;
       } else if (e.touches.length === 2) {
         this.isPointerDown = false;
         this.isPinching = true;
@@ -333,8 +347,11 @@ class GameControls {
         const dx = e.touches[0].clientX - this.previousPointerPos.x;
         const dy = e.touches[0].clientY - this.previousPointerPos.y;
 
-        this.orbitTheta -= dx * 0.007;
-        this.orbitPhi -= dy * 0.005;
+        this.velTheta = -dx * 0.007;
+        this.velPhi = -dy * 0.005;
+
+        this.orbitTheta += this.velTheta;
+        this.orbitPhi += this.velPhi;
         this.orbitPhi = Math.max(0.12, Math.min(Math.PI * 0.48, this.orbitPhi));
 
         this.previousPointerPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -343,10 +360,10 @@ class GameControls {
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
-        const diff = (this.pinchStartDistance - dist) * 0.08;
-        this.orbitRadius = Math.max(
+        const diff = (this.pinchStartDistance - dist) * 0.14;
+        this.targetRadius = Math.max(
           GAME_CONFIG.camera.minDistance,
-          Math.min(GAME_CONFIG.camera.maxDistance, this.orbitRadius + diff)
+          Math.min(GAME_CONFIG.camera.maxDistance, this.targetRadius + diff)
         );
         this.pinchStartDistance = dist;
       }
@@ -385,10 +402,24 @@ class GameControls {
   }
 
   update(dt) {
+    // Apply inertia / momentum decay when not interacting
+    if (!this.isPointerDown && !this.isPinching) {
+      this.orbitTheta += this.velTheta;
+      this.orbitPhi += this.velPhi;
+      this.velTheta *= this.inertiaDamping;
+      this.velPhi *= this.inertiaDamping;
+    }
+
+    // Clamp pitch to avoid gimbal flip or clipping ground
+    this.orbitPhi = Math.max(0.12, Math.min(Math.PI * 0.48, this.orbitPhi));
+
+    // Smooth relaxing zoom interpolation
+    this.orbitRadius += (this.targetRadius - this.orbitRadius) * 0.12;
+
     // Camera smoothly follows train locomotive position
     const trainPos = this.physics.currentPosition;
     // Look-at point slightly above track level (locomotive center of mass)
-    this.targetPos.lerp(new THREE.Vector3(trainPos.x, trainPos.y + 2.2, trainPos.z), 0.12);
+    this.targetPos.lerp(new THREE.Vector3(trainPos.x, trainPos.y + 2.0, trainPos.z), 0.08);
 
     // Calculate spherical camera position relative to target
     const sinPhi = Math.sin(this.orbitPhi);

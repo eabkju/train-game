@@ -12,11 +12,11 @@
     scene = new THREE.Scene();
     clock = new THREE.Clock();
 
-    // 2. Camera Setup
+    // 2. Camera Setup (Clipped at 1200m for nearby rendering focus)
     const aspect = window.innerWidth / window.innerHeight;
-    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, GAME_CONFIG.camera.far);
+    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, 1200);
 
-    // 3. WebGL Renderer with High Performance & Shadows
+    // 3. WebGL Renderer with High Performance & Smooth 60fps
     try {
       renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -36,10 +36,9 @@
       }
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.BasicShadowMap;
+    renderer.shadowMap.enabled = false; // Fast vertex-shaded rendering for butter-smooth framerate
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     container.appendChild(renderer.domElement);
@@ -82,7 +81,9 @@
   function animate() {
     requestAnimationFrame(animate);
 
-    const dt = clock.getDelta();
+    let dt = clock.getDelta();
+    // Clamp delta time to avoid frame skips / spiral of death
+    if (dt > 0.05) dt = 0.05;
 
     // Step physics & train mechanics
     trainPhysics.update(dt);
@@ -90,6 +91,9 @@
 
     // Update weather & rain particle animation
     weatherManager.update(dt, trainPhysics.currentPosition);
+
+    // Update environment nearby LOD
+    envManager.update(trainPhysics.currentPosition);
 
     // Update camera orbit & follow target
     gameControls.update(dt);

@@ -493,7 +493,6 @@ class TrainAudioEngine {
     if (!this.ctx) return;
     this.isRaining = active;
     const now = this.ctx.currentTime;
-    // rainMasterGain covers all 4 layers (rainGain is aliased to rainMasterGain)
     const g = this.rainMasterGain || this.rainGain;
     if (!g) return;
 
@@ -501,12 +500,91 @@ class TrainAudioEngine {
     g.gain.setValueAtTime(g.gain.value, now);
 
     if (active) {
-      // Fade in over 2.5s to 0.32 — natural build-up of rain sound
-      g.gain.linearRampToValueAtTime(0.32, now + 2.5);
+      // Natural rain start: Initial onset spray & droplet impacts
+      this.playRainStartSfx(now);
+      // Smooth fade into continuous rain ambience (using responsive setTargetAtTime from reference)
+      g.gain.setTargetAtTime(0.26, now, 0.45);
     } else {
-      // Fade out over 2.0s — rain trailing off
-      g.gain.linearRampToValueAtTime(0.0001, now + 2.0);
+      // Natural rain stop: Smooth fade out followed by trailing droplets
+      this.playRainStopSfx(now);
+      g.gain.setTargetAtTime(0.0001, now, 0.55);
     }
+  }
+
+  // Realistic Rain Start SFX: Onset wind gust & scattered initial droplets on roof/ground
+  playRainStartSfx(time) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+
+    // 1. Initial wind/rain gust rush
+    const gustLen = Math.floor(ctx.sampleRate * 0.7);
+    const gustBuf = ctx.createBuffer(1, gustLen, ctx.sampleRate);
+    const gData = gustBuf.getChannelData(0);
+    for (let i = 0; i < gustLen; i++) {
+      const env = Math.sin((i / gustLen) * Math.PI);
+      gData[i] = (Math.random() * 2 - 1) * env * 0.35;
+    }
+    const gustSrc = ctx.createBufferSource();
+    gustSrc.buffer = gustBuf;
+    const gustFilter = ctx.createBiquadFilter();
+    gustFilter.type = 'lowpass';
+    gustFilter.frequency.setValueAtTime(950, time);
+    const gustGain = ctx.createGain();
+    gustGain.gain.setValueAtTime(0.22, time);
+    gustSrc.connect(gustFilter);
+    gustFilter.connect(gustGain);
+    gustGain.connect(this.masterGain);
+    gustSrc.start(time);
+
+    // 2. Initial rain drops hitting the carriage roof & windows (scattered onset)
+    const dropOffsets = [0.04, 0.11, 0.18, 0.23, 0.29, 0.36, 0.44, 0.51, 0.58];
+    dropOffsets.forEach(dt => {
+      const dropTime = time + dt + (Math.random() - 0.5) * 0.03;
+      const freq = 1400 + Math.random() * 1200;
+      const vol = 0.08 + Math.random() * 0.09;
+      this.synthesizeDroplet(dropTime, freq, vol);
+    });
+  }
+
+  // Realistic Rain Stop SFX: Trailing gentle drips subsiding into calm
+  playRainStopSfx(time) {
+    if (!this.ctx) return;
+    // Trailing individual drops at gradually widening intervals as shower passes
+    const trailingOffsets = [0.12, 0.32, 0.62, 1.02, 1.55];
+    trailingOffsets.forEach((dt, idx) => {
+      const dropTime = time + dt + (Math.random() - 0.5) * 0.04;
+      const freq = 1200 + Math.random() * 1000;
+      const vol = Math.max(0.015, (0.09 - idx * 0.016));
+      this.synthesizeDroplet(dropTime, freq, vol);
+    });
+  }
+
+  // Single raindrop acoustic impact synthesis
+  synthesizeDroplet(dropTime, centerFreq, volume) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const duration = 0.045;
+    const len = Math.floor(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < len; i++) {
+      const t = i / ctx.sampleRate;
+      // Damped sine ping blended with tiny noise transient
+      const ping = Math.sin(2 * Math.PI * centerFreq * t);
+      const decay = Math.exp(-t * 85);
+      data[i] = (ping * 0.7 + (Math.random() * 2 - 1) * 0.3) * decay;
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, dropTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, dropTime + duration);
+
+    src.connect(gain);
+    gain.connect(this.masterGain);
+    src.start(dropTime);
   }
 }
 

@@ -17,11 +17,11 @@ class WeatherManager {
     this.moonMesh = null;
     this.stars = null;
 
-    // Rain system
+    // Rain system - tightly centered in nearby train vicinity
     this.rainParticles = null;
-    this.rainDropCount = 2500;
+    this.rainDropCount = 1800;
     this.rainGeom = null;
-    this.rainBoxSize = { x: 150, y: 60, z: 150 };
+    this.rainBoxSize = { x: 120, y: 50, z: 120 };
 
     this.initLighting();
     this.initSky();
@@ -31,41 +31,24 @@ class WeatherManager {
 
   initLighting() {
     // Hemispherical ambient sky/ground fill
-    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7);
     this.hemiLight.position.set(0, 80, 0);
     this.scene.add(this.hemiLight);
 
     // Directional Sunlight (Day)
-    this.sunLight = new THREE.DirectionalLight(GAME_CONFIG.colors.daySun, 1.35);
+    this.sunLight = new THREE.DirectionalLight(GAME_CONFIG.colors.daySun, 1.25);
     this.sunLight.position.set(80, 110, 60);
-    this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 1024;
-    this.sunLight.shadow.mapSize.height = 1024;
-    this.sunLight.shadow.camera.near = 10;
-    this.sunLight.shadow.camera.far = 300;
-    this.sunLight.shadow.camera.left = -90;
-    this.sunLight.shadow.camera.right = 90;
-    this.sunLight.shadow.camera.top = 90;
-    this.sunLight.shadow.camera.bottom = -90;
-    this.sunLight.shadow.bias = -0.0005;
+    this.sunLight.castShadow = false; // Disabled shadow mapping for ultra-smooth 60fps
     this.scene.add(this.sunLight);
 
     // Directional Moonlight (Night - soft silver-blue light, never pitch black!)
     this.moonLight = new THREE.DirectionalLight(0xa5c4e8, 0.0);
     this.moonLight.position.set(-60, 95, -70);
-    this.moonLight.castShadow = true;
-    this.moonLight.shadow.mapSize.width = 1024;
-    this.moonLight.shadow.mapSize.height = 1024;
-    this.moonLight.shadow.camera.near = 10;
-    this.moonLight.shadow.camera.far = 300;
-    this.moonLight.shadow.camera.left = -90;
-    this.moonLight.shadow.camera.right = 90;
-    this.moonLight.shadow.camera.top = 90;
-    this.moonLight.shadow.camera.bottom = -90;
+    this.moonLight.castShadow = false;
     this.scene.add(this.moonLight);
 
-    // Atmosphere distance fog
-    this.scene.fog = new THREE.FogExp2(0xb8d5f2, 0.0035);
+    // Distance fog: Crystal clear near train, smoothly blending into horizon
+    this.scene.fog = new THREE.Fog(0xb8d5f2, 150, 800);
   }
 
   initSky() {
@@ -185,7 +168,8 @@ class WeatherManager {
 
     const fogColor = this.isRaining ? 0x8ea2b8 : 0xb8d5f2;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.density = this.isRaining ? 0.0075 : 0.0035;
+    this.scene.fog.near = this.isRaining ? 80 : 150;
+    this.scene.fog.far = this.isRaining ? 550 : 800;
   }
 
   applyNightMode() {
@@ -203,7 +187,8 @@ class WeatherManager {
 
     const fogColor = this.isRaining ? 0x060c17 : 0x0a1424;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.density = this.isRaining ? 0.008 : 0.004;
+    this.scene.fog.near = this.isRaining ? 70 : 120;
+    this.scene.fog.far = this.isRaining ? 480 : 700;
   }
 
   toggleRain() {
