@@ -30,30 +30,30 @@ class WeatherManager {
   }
 
   initLighting() {
-    // Hemispherical ambient sky/ground fill
-    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7);
-    this.hemiLight.position.set(0, 80, 0);
+    // Hemispherical ambient sky/ground fill (Balanced, natural light)
+    this.hemiLight = new THREE.HemisphereLight(GAME_CONFIG.colors.daySun, 0x384532, 0.52);
+    this.hemiLight.position.set(0, 120, 0);
     this.scene.add(this.hemiLight);
 
     // Directional Sunlight (Day)
-    this.sunLight = new THREE.DirectionalLight(GAME_CONFIG.colors.daySun, 1.25);
-    this.sunLight.position.set(80, 110, 60);
+    this.sunLight = new THREE.DirectionalLight(GAME_CONFIG.colors.daySun, 1.05);
+    this.sunLight.position.set(120, 220, 140);
     this.sunLight.castShadow = false; // Disabled shadow mapping for ultra-smooth 60fps
     this.scene.add(this.sunLight);
 
     // Directional Moonlight (Night - soft silver-blue light, never pitch black!)
-    this.moonLight = new THREE.DirectionalLight(0xa5c4e8, 0.0);
-    this.moonLight.position.set(-60, 95, -70);
+    this.moonLight = new THREE.DirectionalLight(0x9cbbe0, 0.0);
+    this.moonLight.position.set(-140, 200, -160);
     this.moonLight.castShadow = false;
     this.scene.add(this.moonLight);
 
     // Distance fog: Smooth atmospheric horizon, crystal clear near train
-    this.scene.fog = new THREE.Fog(0xb8d5f2, 200, 1400);
+    this.scene.fog = new THREE.Fog(0x9fbcd6, 300, 1800);
   }
 
   initSky() {
-    // 1. Sky Dome Hemisphere (Expansive 2000m radius dome)
-    const skyGeom = new THREE.SphereGeometry(2000, 32, 24);
+    // 1. Sky Dome Hemisphere (Expansive 2500m radius dome)
+    const skyGeom = new THREE.SphereGeometry(2500, 32, 24);
     const skyMat = new THREE.MeshBasicMaterial({
       color: GAME_CONFIG.colors.daySky,
       side: THREE.BackSide
@@ -70,7 +70,7 @@ class WeatherManager {
       const v = Math.random();
       const theta = u * 2.0 * Math.PI;
       const phi = Math.acos(2.0 * v - 1.0);
-      const r = 1950;
+      const r = 2450;
       // Only place stars above horizon
       const y = Math.abs(r * Math.cos(phi)) + 15;
       const x = r * Math.sin(phi) * Math.cos(theta);
@@ -91,14 +91,14 @@ class WeatherManager {
     this.scene.add(this.stars);
 
     // 3. Glowing Full Moon Disc
-    const moonGeom = new THREE.SphereGeometry(22, 24, 24);
+    const moonGeom = new THREE.SphereGeometry(28, 24, 24);
     const moonMat = new THREE.MeshBasicMaterial({
       color: GAME_CONFIG.colors.moonlitMoon,
       transparent: true,
       opacity: 0.0
     });
     this.moonMesh = new THREE.Mesh(moonGeom, moonMat);
-    this.moonMesh.position.set(-180, 240, -220);
+    this.moonMesh.position.set(-320, 420, -380);
     this.scene.add(this.moonMesh);
   }
 
@@ -155,40 +155,39 @@ class WeatherManager {
   }
 
   applyDayMode() {
-    // Bright natural daylight
+    // Soft natural daylight (Premium simulator lighting)
     this.skyDome.material.color.setHex(GAME_CONFIG.colors.daySky);
-    this.sunLight.intensity = 1.35;
+    this.sunLight.intensity = 1.05;
     this.moonLight.intensity = 0.0;
     this.hemiLight.color.setHex(GAME_CONFIG.colors.daySun);
-    this.hemiLight.groundColor.setHex(0x354b2d);
-    this.hemiLight.intensity = 0.65;
+    this.hemiLight.groundColor.setHex(0x384532);
+    this.hemiLight.intensity = 0.52;
 
     this.stars.material.opacity = 0.0;
     this.moonMesh.material.opacity = 0.0;
 
-    const fogColor = this.isRaining ? 0x8ea2b8 : 0xb8d5f2;
+    const fogColor = this.isRaining ? 0x8296a8 : 0x9fbcd6;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.near = this.isRaining ? 120 : 250;
-    this.scene.fog.far = this.isRaining ? 800 : 1600;
+    this.scene.fog.near = this.isRaining ? 150 : 300;
+    this.scene.fog.far = this.isRaining ? 900 : 1800;
   }
 
   applyNightMode() {
-    // Beautiful Moonlit Night (not pitch black!)
+    // Beautiful Moonlit Night (soft natural moonlight, never pitch black)
     this.skyDome.material.color.setHex(GAME_CONFIG.colors.moonlitSky);
     this.sunLight.intensity = 0.0;
-    // Silver moonlight illuminates terrain and tracks
-    this.moonLight.intensity = 0.75;
-    this.hemiLight.color.setHex(0x5678a6);
-    this.hemiLight.groundColor.setHex(0x131e2c);
-    this.hemiLight.intensity = 0.55;
+    this.moonLight.intensity = 0.65;
+    this.hemiLight.color.setHex(0x3a506e);
+    this.hemiLight.groundColor.setHex(0x131a24);
+    this.hemiLight.intensity = 0.45;
 
     this.stars.material.opacity = 0.85;
     this.moonMesh.material.opacity = 0.95;
 
-    const fogColor = this.isRaining ? 0x060c17 : 0x0a1424;
+    const fogColor = this.isRaining ? 0x080f1a : 0x0c1626;
     this.scene.fog.color.setHex(fogColor);
-    this.scene.fog.near = this.isRaining ? 100 : 200;
-    this.scene.fog.far = this.isRaining ? 700 : 1400;
+    this.scene.fog.near = this.isRaining ? 120 : 250;
+    this.scene.fog.far = this.isRaining ? 800 : 1600;
   }
 
   toggleRain() {
@@ -213,37 +212,12 @@ class WeatherManager {
   }
 
   update(dt, targetPosition, camera) {
-    // 1. Move Sky Dome, Celestials & Dynamic Lighting with the player
-    // This permanently ensures the world never enters an un-designed dark void!
-    if (targetPosition) {
-      if (this.skyDome) {
-        this.skyDome.position.set(targetPosition.x, 0, targetPosition.z);
-      }
-      if (this.stars) {
-        this.stars.position.set(targetPosition.x, 0, targetPosition.z);
-      }
-      if (this.moonMesh) {
-        this.moonMesh.position.set(targetPosition.x - 220, 350, targetPosition.z - 280);
-      }
-      if (this.sunLight) {
-        this.sunLight.position.set(targetPosition.x + 80, 110, targetPosition.z + 60);
-        this.sunLight.target.position.copy(targetPosition);
-      }
-      if (this.moonLight) {
-        this.moonLight.position.set(targetPosition.x - 60, 95, targetPosition.z - 70);
-        this.moonLight.target.position.copy(targetPosition);
-      }
-      if (this.hemiLight) {
-        this.hemiLight.position.set(targetPosition.x, 80, targetPosition.z);
-      }
-    }
-
     // Star twinkle effect
     if (this.isNight && this.stars) {
       this.stars.rotation.y += dt * 0.002;
     }
 
-    // Update slow natural falling raindrops
+    // Update slow natural falling raindrops (centered around train)
     if (this.isRaining && this.rainParticles && targetPosition) {
       const posAttr = this.rainGeom.attributes.position;
       const array = posAttr.array;

@@ -40,7 +40,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = false; // Fast vertex-shaded rendering for butter-smooth framerate
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 0.92; // Natural, balanced daylight exposure (no blown-out highlights or cheap contrast)
     container.appendChild(renderer.domElement);
 
     // 4. Initialize Core Game Subsystems

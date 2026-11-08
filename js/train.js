@@ -85,26 +85,17 @@ class TrainLocomotive {
       this.bodyGroup.add(s);
     });
 
-    // 3. Driver Cab
+    // 3. Driver Cab (Sleek, integrated cab structure - no unnatural roof add-ons)
     const cabL = 3.2, cabW = 2.9, cabH = 2.5;
     const cabZ = -3.7;
     const cab = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabL), bodyMat);
     cab.position.set(0, 2.8, cabZ);
     this.bodyGroup.add(cab);
 
-    // Cab Curved Roof
-    const roofGeom = new THREE.CylinderGeometry(cabW * 0.52, cabW * 0.52, cabL + 0.1, 10, 1, false, 0, Math.PI);
-    roofGeom.rotateZ(Math.PI * 0.5);
-    roofGeom.rotateY(Math.PI * 0.5);
-    const cabRoof = new THREE.Mesh(roofGeom, roofMat);
-    cabRoof.position.set(0, 4.05, cabZ);
-    cabRoof.scale.set(0.35, 1, 1);
-    this.bodyGroup.add(cabRoof);
-
     // Cab Windows (Front & sides)
     const winMat = new THREE.MeshLambertMaterial({
-      color: 0x88b4d8,
-      emissive: 0x223a4e,
+      color: 0x7a93a8,
+      emissive: 0x1b2836,
       emissiveIntensity: 0.2
     });
 
@@ -119,11 +110,6 @@ class TrainLocomotive {
       sWin.position.set(x, 3.3, cabZ);
       this.bodyGroup.add(sWin);
     });
-
-    // Roof Exhaust Stack
-    const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.6, 8), darkMat);
-    exhaust.position.set(0, 3.8, 2.8);
-    this.bodyGroup.add(exhaust);
 
     // 4. Locomotive Headlight (Forward SpotLight)
     const hlHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.28, 10), darkMat);
@@ -166,49 +152,39 @@ class TrainLocomotive {
     const coachCount = GAME_CONFIG.train.carriageCount || 5;
     const L = GAME_CONFIG.train.carriageLength || 11.2;
     const W = GAME_CONFIG.train.carriageWidth || 2.85;
-    const H = 2.5;
+    const H = 2.6; // Full authentic coach body height with clean, seamless integrated roof
 
-    const coachBodyMat = new THREE.MeshLambertMaterial({ color: 0x1c4a2c }); // Deep Bengal railway emerald green
+    const coachBodyMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.coachBody || 0x1d2c3c });
     const stripeMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainStripe });
-    const roofMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.trainRoof });
-    const darkMat = new THREE.MeshLambertMaterial({ color: 0x1f2422 });
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x16181b });
 
     for (let i = 0; i < coachCount; i++) {
       const carGroup = new THREE.Group();
       this.root.add(carGroup);
 
-      // 1. Carriage Main Body
+      // 1. Carriage Main Body (Smooth, integrated roof - no unnatural tubes or roof add-ons)
       const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, L), coachBodyMat);
-      body.position.y = 2.45;
+      body.position.y = 2.5;
       carGroup.add(body);
 
-      // Gold coach waist stripe
+      // Understated champagne gold / brass coach waist stripe
       [-W * 0.5 - 0.02, W * 0.5 + 0.02].forEach(x => {
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.24, L), stripeMat);
-        stripe.position.set(x, 2.7, 0);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, L), stripeMat);
+        stripe.position.set(x, 2.65, 0);
         carGroup.add(stripe);
       });
 
-      // 2. Curved Coach Roof
-      const roofGeom = new THREE.CylinderGeometry(W * 0.52, W * 0.52, L - 0.1, 10, 1, false, 0, Math.PI);
-      roofGeom.rotateZ(Math.PI * 0.5);
-      roofGeom.rotateY(Math.PI * 0.5);
-      const roof = new THREE.Mesh(roofGeom, roofMat);
-      roof.position.set(0, 3.7, 0);
-      roof.scale.set(0.32, 1, 1);
-      carGroup.add(roof);
-
-      // 3. Cabin Windows (Shared material, responsive to Light button)
+      // 2. Cabin Windows (Shared material, responsive to Light button)
       const winMat = new THREE.MeshLambertMaterial({
-        color: 0xffe299,
+        color: 0xc4cdd6,
         emissive: GAME_CONFIG.colors.coachWindowGlow,
         emissiveIntensity: 0.0
       });
 
-      // Left and right window rows (4 wide bay windows per side - looks clean & loads instantly)
+      // Left and right window rows (4 wide bay windows per side - clean, realistic architectural proportions)
       [-W * 0.5 - 0.02, W * 0.5 + 0.02].forEach(x => {
         for (let wz = -3.8; wz <= 3.8; wz += 2.5) {
-          const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.75, 1.4), winMat);
+          const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.72, 1.4), winMat);
           win.position.set(x, 2.65, wz);
           carGroup.add(win);
           this.carriageWindowMeshes.push(win);
