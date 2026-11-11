@@ -1,113 +1,164 @@
-// main.js - Application bootstrap, scene lifecycle and 60fps render loop
+// main.js - Thermal-Smart Application Bootstrap, Adaptive FPS Limiter & Idle Render Governor
 (function() {
-  'use strict';
+    'use strict';
 
-  let scene, camera, renderer, clock;
-  let trackSystem, trainPhysics, locomotive, envManager, weatherManager, gameControls;
+    let scene, camera, renderer;
+    let trackSystem, trainPhysics, locomotive, envManager, villageManager, weatherManager, audioManager, gameControls;
 
-  function init() {
-    const container = document.getElementById('canvas-container');
+    // Performance & Thermal Governor State
+    let perfModeIdx = GAME_CONFIG.performance.defaultModeIndex || 0;
+    let currentPerfMode = GAME_CONFIG.performance.modes[perfModeIdx];
+    let lastFrameTime = 0;
+    let lastSimTime = performance.now();
+    let fpsFrameCount = 0;
+    let fpsAccumTime = 0;
+    let perfTextEl = null;
 
-    // 1. Three.js Scene & Clock
-    scene = new THREE.Scene();
-    clock = new THREE.Clock();
-
-    // 2. Camera Setup (Expansive 4000m view distance for endless panoramic horizons)
-    const aspect = window.innerWidth / window.innerHeight;
-    camera = new THREE.PerspectiveCamera(GAME_CONFIG.camera.fov, aspect, GAME_CONFIG.camera.near, 4000);
-
-    // 3. WebGL Renderer with High Performance & Smooth 60fps
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: 'high-performance'
-      });
-    } catch (e) {
-      console.error('WebGL Initialization Error:', e);
-      const loader = document.getElementById('loading-overlay');
-      if (loader) {
-        loader.innerHTML = `
-          <div style="font-size:42px;margin-bottom:12px;">⚠️</div>
-          <div class="loader-title">WebGL Not Supported</div>
-          <div class="loader-sub" style="max-width:320px;text-align:center;margin-top:8px;">
-            Please enable WebGL or hardware acceleration in your browser to play the 3D train simulation.
-          </div>
-        `;
-      }
-      return;
+    function applyPerformanceMode(mode) {
+        currentPerfMode = mode;
+        if (renderer) {
+            const dpr = Math.min(window.devicePixelRatio || 1, mode.maxDpr);
+            renderer.setPixelRatio(dpr);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
     }
-    renderer.setClearColor(GAME_CONFIG.colors.daySky, 1.0); // Never clear to black!
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = false; // Fast vertex-shaded rendering for butter-smooth framerate
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.92; // Natural, balanced daylight exposure (no blown-out highlights or cheap contrast)
-    scene.background = new THREE.Color(GAME_CONFIG.colors.daySky);
-    container.appendChild(renderer.domElement);
 
-    // 4. Initialize Core Game Subsystems
-    trackSystem = new TrackSystem(scene);
-    trainPhysics = new TrainPhysics(trackSystem.spline);
-    locomotive = new TrainLocomotive(scene, trainPhysics);
-    envManager = new EnvironmentManager(scene, trackSystem);
-    weatherManager = new WeatherManager(scene, renderer);
-    gameControls = new GameControls(camera, renderer.domElement, locomotive, trainPhysics, weatherManager, envManager);
-
-    // 5. Initial Positioning
-    trainPhysics.update(0.01);
-    locomotive.update(0.01);
-    gameControls.update(0.01);
-
-    // 6. Window Resize Listener
-    window.addEventListener('resize', onWindowResize, false);
-
-    // 7. Start Render Loop
-    requestAnimationFrame(animate);
-
-    // Hide loading screen once ready
-    const loader = document.getElementById('loading-overlay');
-    if (loader) {
-      setTimeout(() => {
-        loader.classList.add('hidden');
-        setTimeout(() => loader.remove(), 600);
-      }, 400);
+    function cyclePerformanceMode() {
+        perfModeIdx = (perfModeIdx + 1) % GAME_CONFIG.performance.modes.length;
+        const mode = GAME_CONFIG.performance.modes[perfModeIdx];
+        applyPerformanceMode(mode);
+        return mode;
     }
-  }
 
-  function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
+    function init() {
+        const container = document.getElementById('canvas-container');
+        perfTextEl = document.getElementById('perf-text');
 
-  function animate() {
-    requestAnimationFrame(animate);
+        // 1. Scene & Camera
+        scene = new THREE.Scene();
+        const aspect = window.innerWidth / window.innerHeight;
+        camera = new THREE.PerspectiveCamera(
+            GAME_CONFIG.camera.fov,
+            aspect,
+            GAME_CONFIG.camera.near,
+            GAME_CONFIG.camera.far
+        );
 
-    let dt = clock.getDelta();
-    // Clamp delta time to avoid frame skips / spiral of death
-    if (dt > 0.05) dt = 0.05;
+        // 2. Lightweight WebGL Renderer
+        try {
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                powerPreference: 'default' // Avoid forcing discrete GPU boost clock unnecessarily
+            });
+        } catch (e) {
+            console.error('WebGL Initialization Error:', e);
+            return;
+        }
 
-    // Step physics & train mechanics
-    trainPhysics.update(dt);
-    locomotive.update(dt);
+        renderer.shadowMap.enabled = false; // Zero shadow map overhead
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 0.96;
+        applyPerformanceMode(currentPerfMode);
+        container.appendChild(renderer.domElement);
 
-    // Update weather & rain particle animation
-    weatherManager.update(dt, trainPhysics.currentPosition, camera);
+        // 3. Initialize Subsystems in Proper Dependency Order
+        trackSystem = new TrackSystem(scene);
+        trainPhysics = new TrainPhysics(trackSystem);
+        locomotive = new TrainLocomotive(scene, trainPhysics);
+        envManager = new EnvironmentManager(scene, trackSystem);
+        villageManager = new VillageManager(scene, trackSystem, envManager);
+        weatherManager = new WeatherManager(scene, renderer, envManager, villageManager);
+        audioManager = new TrainAudioEngine();
+        gameControls = new GameControls(
+            camera,
+            renderer.domElement,
+            locomotive,
+            trainPhysics,
+            weatherManager,
+            envManager,
+            audioManager,
+            cyclePerformanceMode
+        );
 
-    // Update environment nearby LOD
-    envManager.update(trainPhysics.currentPosition);
+        // Start train gently moving at launch so the scene feels alive right away
+        gameControls.toggleStartStop();
 
-    // Update camera orbit & follow target
-    gameControls.update(dt);
+        window.addEventListener('resize', onWindowResize, false);
 
-    // Render frame
-    renderer.render(scene, camera);
-  }
+        // Hide loading screen
+        const loader = document.getElementById('loading-overlay');
+        if (loader) {
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                setTimeout(() => loader.remove(), 450);
+            }, 250);
+        }
 
-  // Launch when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+        requestAnimationFrame(animate);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        if (gameControls) gameControls.cameraMovedRecently = true;
+    }
+
+    function animate(now) {
+        requestAnimationFrame(animate);
+
+        // 1. Tab Visibility Guard: 0% CPU/GPU usage when tab is hidden
+        if (document.hidden) {
+            lastSimTime = now;
+            return;
+        }
+
+        // 2. Adaptive Thermal Frame-Rate Limiter
+        // When train is stopped, rain is off, entities settled, and user isn't dragging camera, drop to 12 FPS idle saver!
+        const isSettled = villageManager ? villageManager.isSettled() : true;
+        const isIdle = (trainPhysics.speed === 0 && !trainPhysics.isRunning && !weatherManager.isRaining && !gameControls.cameraMovedRecently && isSettled);
+        const effectiveFpsCap = isIdle ? 12 : currentPerfMode.fpsCap;
+        const minFrameInterval = 1000.0 / (effectiveFpsCap + 1.5);
+
+        const elapsedMs = now - lastFrameTime;
+        if (elapsedMs < minFrameInterval) {
+            return;
+        }
+        lastFrameTime = now;
+
+        let dt = (now - lastSimTime) / 1000.0;
+        lastSimTime = now;
+        if (dt > 0.05) dt = 0.05;
+
+        // 3. Step Simulation
+        const moved = trainPhysics.update(dt);
+        locomotive.update(dt, moved);
+        weatherManager.update(dt, trainPhysics.currentPosition);
+        envManager.update(trainPhysics.progress, dt);
+        if (villageManager) villageManager.update(dt);
+        gameControls.update(dt);
+        gameControls.cameraMovedRecently = false;
+
+        // 4. Render Scene
+        renderer.render(scene, camera);
+
+        // 5. Update Telemetry Pill once per second
+        fpsFrameCount++;
+        fpsAccumTime += dt;
+        if (fpsAccumTime >= 1.0) {
+            const fps = Math.round(fpsFrameCount / fpsAccumTime);
+            const calls = renderer.info.render.calls;
+            if (perfTextEl) {
+                perfTextEl.textContent = `${fps} FPS · ${calls} Draw Calls · ${ isIdle ? 'Idle Cool' : 'CPU Cool' }`;
+            }
+            fpsFrameCount = 0;
+            fpsAccumTime = 0;
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();

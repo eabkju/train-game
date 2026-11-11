@@ -1,134 +1,163 @@
-// physics.js - Multi-car train kinematics, acceleration, deceleration & trailing carriage spline tracking
+// physics.js - Zero-Allocation Multi-Car Train Kinematics using Pre-Baked O(1) Track Lookup
 class TrainPhysics {
-  constructor(trackSpline) {
-    this.trackSpline = trackSpline;
-    this.trackLength = trackSpline.getLength();
+    constructor(trackSystem) {
+        this.trackSystem = trackSystem;
+        this.trackSpline = trackSystem.spline;
+        this.trackLength = trackSystem.totalLength;
 
-    // Kinematic states
-    this.speed = 0.0;           // Current speed in m/s
-    this.targetSpeed = 0.0;     // Target speed in m/s
-    this.isRunning = false;      // Throttle state
-    this.progress = 0.15;       // Normalized track parameter u in [0, 1)
+        // Kinematic states
+        this.speed = 0.0;                  // Current speed in m/s
+        this.targetSpeed = 0.0;            // Target speed in m/s
+        this.throttleFraction = 0.85;      // User throttle setting (0.2 to 1.0)
+        this.isRunning = false;            // Throttle active state
+        this.progress = 0.02;              // Normalized track parameter u in [0, 1)
+        this.wheelRotation = 0.0;          // Wheel rotation in radians
 
-    // Wheel rotation angle in radians
-    this.wheelRotation = 0.0;
+        // Locomotive Kinematics (Car 0)
+        this.currentPosition = new THREE.Vector3();
+        this.currentTangent = new THREE.Vector3();
+        this.frontBogiePos = new THREE.Vector3();
+        this.rearBogiePos = new THREE.Vector3();
+        this.frontBogieTan = new THREE.Vector3();
+        this.rearBogieTan = new THREE.Vector3();
 
-    // Locomotive Kinematics (Car 0)
-    this.currentPosition = new THREE.Vector3();
-    this.currentTangent = new THREE.Vector3();
-    this.frontBogiePos = new THREE.Vector3();
-    this.rearBogiePos = new THREE.Vector3();
+        // 5 Trailing Carriages Kinematics (Cars 1 to 5)
+        this.carriageCount = GAME_CONFIG.train.carriageCount || 5;
+        this.carriageSpacing = GAME_CONFIG.train.carriageSpacing || 12.3;
+        this.carriagesData = [];
 
-    // 5 Trailing Carriages Kinematics (Cars 1 to 5)
-    this.carriageCount = GAME_CONFIG.train.carriageCount || 5;
-    this.carriageSpacing = GAME_CONFIG.train.carriageSpacing || 12.2;
-    this.carriagesData = [];
+        for (let i = 0; i < this.carriageCount; i++) {
+            this.carriagesData.push({
+                position: new THREE.Vector3(),
+                tangent: new THREE.Vector3(),
+                frontBogiePos: new THREE.Vector3(),
+                rearBogiePos: new THREE.Vector3(),
+                frontTangent: new THREE.Vector3(),
+                rearTangent: new THREE.Vector3(),
+                wheelRotation: 0.0,
+                progress: 0.02
+            });
+        }
 
-    for (let i = 0; i < this.carriageCount; i++) {
-      this.carriagesData.push({
-        position: new THREE.Vector3(),
-        tangent: new THREE.Vector3(),
-        frontBogiePos: new THREE.Vector3(),
-        rearBogiePos: new THREE.Vector3(),
-        frontTangent: new THREE.Vector3(),
-        rearTangent: new THREE.Vector3(),
-        progress: 0.0
-      });
+        // Compute initial positions once at boot
+        this._syncAllCarPositions();
     }
 
-    // Cache physical limits
-    this.maxSpeed = GAME_CONFIG.train.maxSpeed;
-    this.acceleration = GAME_CONFIG.train.acceleration;
-    this.deceleration = GAME_CONFIG.train.deceleration;
-    this.friction = GAME_CONFIG.train.friction;
-    this.wheelRadius = GAME_CONFIG.train.wheelRadius;
-    this.locoBogieDist = GAME_CONFIG.train.bogieDistance;
-    this.coachBogieDist = GAME_CONFIG.train.carriageBogieDist || 6.8;
-  }
-
-  toggleStartStop() {
-    this.isRunning = !this.isRunning;
-    this.targetSpeed = this.isRunning ? this.maxSpeed : 0.0;
-    TrainAudio.setEngineActive(this.isRunning);
-    return this.isRunning;
-  }
-
-  setRunning(run) {
-    if (this.isRunning === run) return;
-    this.isRunning = run;
-    this.targetSpeed = this.isRunning ? this.maxSpeed : 0.0;
-    TrainAudio.setEngineActive(this.isRunning);
-  }
-
-  update(dt) {
-    const delta = Math.min(dt, 0.1);
-
-    if (this.isRunning) {
-      if (this.speed < this.targetSpeed) {
-        this.speed = Math.min(this.speed + this.acceleration * delta, this.targetSpeed);
-      }
-    } else {
-      if (this.speed > 0) {
-        this.speed = Math.max(this.speed - (this.deceleration + this.friction) * delta, 0);
-      }
+    setRunning(isRunning) {
+        this.isRunning = isRunning;
+        this.targetSpeed = isRunning ? (GAME_CONFIG.train.maxSpeed * this.throttleFraction) : 0.0;
     }
 
-    // Distance traveled in meters
-    const ds = this.speed * delta;
-
-    if (ds > 0) {
-      this.progress = (this.progress + ds / this.trackLength) % 1.0;
-      this.wheelRotation += ds / this.wheelRadius;
+    setThrottleFraction(fraction) {
+        this.throttleFraction = Math.max(0.2, Math.min(1.0, fraction));
+        if (this.isRunning) {
+            this.targetSpeed = GAME_CONFIG.train.maxSpeed * this.throttleFraction;
+        }
     }
 
-    // 1. Locomotive (Lead Vehicle) Position & Heading
-    this.trackSpline.getPointAt(this.progress, this.currentPosition);
-    this.trackSpline.getTangentAt(this.progress, this.currentTangent);
-
-    // Locomotive Bogies
-    const locoHalfBogieNorm = (this.locoBogieDist * 0.5) / this.trackLength;
-    const fLocoU = (this.progress + locoHalfBogieNorm + 1.0) % 1.0;
-    const rLocoU = (this.progress - locoHalfBogieNorm + 1.0) % 1.0;
-    this.trackSpline.getPointAt(fLocoU, this.frontBogiePos);
-    this.trackSpline.getPointAt(rLocoU, this.rearBogiePos);
-
-    // 2. Trailing 5 Carriages - Exact Spline Tracking with Real Coupling Offsets
-    const coachHalfBogieNorm = (this.coachBogieDist * 0.5) / this.trackLength;
-
-    for (let i = 0; i < this.carriageCount; i++) {
-      const carIndex = i + 1; // 1 to 5
-      const offsetDist = carIndex * this.carriageSpacing;
-      const carU = (this.progress - (offsetDist / this.trackLength) + 1.0) % 1.0;
-
-      const data = this.carriagesData[i];
-      data.progress = carU;
-
-      // Carriage center
-      this.trackSpline.getPointAt(carU, data.position);
-      this.trackSpline.getTangentAt(carU, data.tangent);
-
-      // Carriage front and rear bogies
-      const fCarU = (carU + coachHalfBogieNorm + 1.0) % 1.0;
-      const rCarU = (carU - coachHalfBogieNorm + 1.0) % 1.0;
-
-      this.trackSpline.getPointAt(fCarU, data.frontBogiePos);
-      this.trackSpline.getPointAt(rCarU, data.rearBogiePos);
-      this.trackSpline.getTangentAt(fCarU, data.frontTangent);
-      this.trackSpline.getTangentAt(rCarU, data.rearTangent);
+    setTargetSpeed(targetSpeed) {
+        this.targetSpeed = Math.max(0.0, Math.min(GAME_CONFIG.train.maxSpeed, targetSpeed));
     }
 
-    // Notify Audio Engine (with bridge detection)
-    const onBridge = (this.currentPosition.y > 2.0 && Math.abs(this.currentPosition.z) < 250);
-    TrainAudio.update(this.speed, this.speed > 0.05, delta, onBridge);
-  }
+    update(dt) {
+        const delta = Math.min(dt, 0.1);
 
-  getSpeedKmh() {
-    return Math.round(this.speed * 3.6);
-  }
+        // Smooth acceleration / braking dynamics
+        if (this.speed < this.targetSpeed) {
+            this.speed += GAME_CONFIG.train.acceleration * delta;
+            if (this.speed > this.targetSpeed) this.speed = this.targetSpeed;
+        } else if (this.speed > this.targetSpeed) {
+            const decelRate = this.targetSpeed === 0.0
+                ? GAME_CONFIG.train.deceleration
+                : GAME_CONFIG.train.friction * 2.5;
+            this.speed -= decelRate * delta;
+            if (this.speed < this.targetSpeed) this.speed = this.targetSpeed;
+        }
 
-  isMoving() {
-    return this.speed > 0.05;
-  }
+        // Skip spline updates completely if stationary (saves CPU!)
+        if (this.speed <= 0.0001) {
+            this.speed = 0.0;
+            return false; // Indicates no movement occurred
+        }
+
+        const distanceDelta = this.speed * delta;
+        this.wheelRotation += distanceDelta / GAME_CONFIG.train.wheelRadius;
+
+        const deltaU = distanceDelta / this.trackLength;
+        this.progress = (this.progress + deltaU) % 1.0;
+
+        this._syncAllCarPositions();
+        return true;
+    }
+
+    _syncAllCarPositions() {
+        // 1. Locomotive
+        this._updateCarKinematics(
+            this.progress,
+            GAME_CONFIG.train.bogieDistance,
+            this.currentPosition,
+            this.currentTangent,
+            this.frontBogiePos,
+            this.rearBogiePos,
+            this.frontBogieTan,
+            this.rearBogieTan
+        );
+
+        // 2. Trailing Passenger Carriages
+        const bogieDist = GAME_CONFIG.train.carriageBogieDist || GAME_CONFIG.train.bogieDistance;
+        for (let i = 0; i < this.carriageCount; i++) {
+            const carOffsetMeters = (i + 1) * this.carriageSpacing;
+            let carProgress = (this.progress - (carOffsetMeters / this.trackLength)) % 1.0;
+            if (carProgress < 0) carProgress += 1.0;
+
+            const car = this.carriagesData[i];
+            car.progress = carProgress;
+            car.wheelRotation = this.wheelRotation;
+
+            this._updateCarKinematics(
+                carProgress,
+                bogieDist,
+                car.position,
+                car.tangent,
+                car.frontBogiePos,
+                car.rearBogiePos,
+                car.frontTangent,
+                car.rearTangent
+            );
+        }
+    }
+
+    _updateCarKinematics(uCenter, bogieDist, outCenterPos, outTangent, outFrontBogie, outRearBogie, outFrontTan, outRearTan) {
+        const halfBogieU = (bogieDist * 0.5) / this.trackLength;
+
+        let uFront = (uCenter + halfBogieU) % 1.0;
+        let uRear = (uCenter - halfBogieU) % 1.0;
+        if (uFront < 0) uFront += 1.0;
+        if (uRear < 0) uRear += 1.0;
+
+        this.trackSystem.samplePoint(uFront, outFrontBogie);
+        this.trackSystem.samplePoint(uRear, outRearBogie);
+        this.trackSystem.sampleTangent(uFront, outFrontTan);
+        this.trackSystem.sampleTangent(uRear, outRearTan);
+
+        outCenterPos.x = (outFrontBogie.x + outRearBogie.x) * 0.5;
+        outCenterPos.y = (outFrontBogie.y + outRearBogie.y) * 0.5;
+        outCenterPos.z = (outFrontBogie.z + outRearBogie.z) * 0.5;
+
+        const dx = outFrontBogie.x - outRearBogie.x;
+        const dy = outFrontBogie.y - outRearBogie.y;
+        const dz = outFrontBogie.z - outRearBogie.z;
+        const len = Math.hypot(dx, dy, dz) || 1.0;
+        outTangent.x = dx / len;
+        outTangent.y = dy / len;
+        outTangent.z = dz / len;
+    }
+
+    getKmh() {
+        return Math.round(this.speed * 3.6);
+    }
+
+    getSpeedRatio() {
+        return Math.min(1.0, this.speed / GAME_CONFIG.train.maxSpeed);
+    }
 }
-
-window.TrainPhysics = TrainPhysics;

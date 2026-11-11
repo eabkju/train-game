@@ -1,96 +1,157 @@
-// config.js - Global game configuration and physical constants
+// config.js - Global game configuration, physical constants, and color palettes
 window.GAME_CONFIG = {
-  // Train & Carriages Physics
-  train: {
-    maxSpeed: 14.0,           // Maximum cruising speed (m/s, ~50 km/h)
-    acceleration: 2.2,        // Acceleration rate (m/s^2)
-    deceleration: 3.5,        // Braking / deceleration rate (m/s^2)
-    friction: 0.35,           // Coasting natural friction (m/s^2)
-    wheelRadius: 0.52,        // Wheel radius in meters for realistic rotation
-    bogieDistance: 6.8,       // Distance between locomotive front and rear bogies
-    length: 12.0,             // Total locomotive length
-    width: 3.1,               // Total locomotive width
-    height: 4.2,              // Total locomotive height
-    
-    // 5 Attached Carriages / Boggies
-    carriageCount: 5,         // Number of trailing passenger carriages
-    carriageLength: 11.2,     // Length of each passenger coach
-    carriageWidth: 2.9,       // Coach body width
-    carriageHeight: 3.65,     // Coach body height
-    carriageSpacing: 12.2,    // Center-to-center distance between adjacent train cars
-    carriageBogieDist: 6.8    // Bogie spacing on each coach
-  },
+    // Train & Carriages Physics
+    train: {
+        maxSpeed: 16.5,         // Maximum cruising speed (m/s, ~60 km/h)
+        acceleration: 2.6,      // Smooth acceleration rate (m/s^2)
+        deceleration: 4.0,      // Responsive braking rate (m/s^2)
+        friction: 0.35,         // Coasting natural friction (m/s^2)
+        wheelRadius: 0.52,      // Wheel radius in meters
+        bogieDistance: 6.8,     // Distance between locomotive front and rear bogies
+        length: 12.2,           // Total locomotive length
+        width: 3.1,             // Total locomotive width
+        height: 4.2,            // Total locomotive height
 
-  // Track Dimensions
-  track: {
-    gauge: 1.435,             // Standard track gauge (meters)
-    railWidth: 0.12,          // Rail head width
-    railHeight: 0.18,         // Rail profile height
-    sleeperWidth: 2.7,        // Cross-tie / sleeper length
-    sleeperHeight: 0.22,      // Sleeper height
-    sleeperDepth: 0.26,       // Sleeper depth (along track)
-    sleeperSpacing: 0.65,     // Spacing between consecutive sleepers
-    ballastWidth: 4.8,        // Ballast embankment width at top
-    ballastHeight: 0.35,      // Ballast height
-    straightLength: 2400.0,   // Length of straight track section (~3 min run at cruise speed)
-    curveRadius: 420.0        // Radius of mild sweeping curves
-  },
+        // 5 Attached Passenger Carriages
+        carriageCount: 5,       // Number of trailing passenger carriages
+        carriageLength: 11.4,   // Length of each passenger coach
+        carriageWidth: 2.92,    // Coach body width
+        carriageHeight: 3.65,   // Coach body height
+        carriageSpacing: 12.3,  // Center-to-center distance between adjacent train cars
+        carriageBogieDist: 6.8  // Bogie spacing on each coach
+    },
 
-  // Camera Settings
-  camera: {
-    fov: 55,
-    near: 0.1,
-    far: 4000,
-    defaultDistance: 32,
-    minDistance: 6,
-    maxDistance: 160,
-    defaultPitch: 0.38,       // Radians elevation angle
-    defaultYaw: -0.65         // Radians azimuth angle
-  },
+    // Track Dimensions
+    track: {
+        gauge: 1.435,           // Standard track gauge (meters)
+        railWidth: 0.12,        // Rail head width
+        railHeight: 0.16,       // Rail profile height
+        sleeperWidth: 2.65,     // Cross-tie / sleeper length
+        sleeperHeight: 0.18,    // Sleeper height
+        sleeperDepth: 0.26,     // Sleeper depth (along track)
+        sleeperSpacing: 1.4,    // Spacing between consecutive instanced sleepers
+        ballastTopWidth: 3.4,   // Ballast top width
+        ballastBaseWidth: 5.4,  // Ballast bottom width
+        ballastHeight: 0.32,    // Ballast embankment height
+        lookupSamples: 4096     // Pre-baked O(1) spline lookup samples
+    },
 
-  // Visual Themes / Lighting (Premium, Natural Simulator Palette)
-  colors: {
-    // Cohesive Royal Heritage Train & Coach Livery
-    trainBody: 0x1d2c3c,      // Refined heritage midnight navy
-    coachBody: 0x1d2c3c,      // Matching cohesive royal coach midnight navy
-    trainStripe: 0xc4a76c,    // Understated champagne gold / brushed brass accent
-    trainRoof: 0x22262c,      // Subtle matte graphite
-    trainFrame: 0x181a1d,     // Matte dark chassis black
-    trainBogies: 0x16181b,    // Greased dark iron
-    trainWheels: 0x6d737a,    // Natural machined steel wheel rims
-    trainBuffersRed: 0x6e2828,// Deep muted burgundy buffer beam
-    trainBuffersWhite: 0xd6d4cd, // Neutral hazard marking
+    // Camera Settings
+    camera: {
+        fov: 52,
+        near: 0.25,
+        far: 2600,
+        defaultDistance: 30,
+        minDistance: 7,
+        maxDistance: 180,
+        defaultPitch: 0.34,     // Radians elevation angle
+        defaultYaw: -0.68       // Radians azimuth angle
+    },
 
-    // Carriage Colors
-    coachWindowGlow: 0xffdf96,// Soft warm 2700K incandescent cabin light
-    coachGangway: 0x141619,   // Flexible rubber accordion connector
+    // Performance & Thermal Settings
+    performance: {
+        modes: [
+            { id: 'balanced', label: '🌿 Cool 45 FPS', fpsCap: 45, maxDpr: 1.25 },
+            { id: 'eco',      label: '⚡ Eco 30 FPS',  fpsCap: 30, maxDpr: 1.0  },
+            { id: 'max',      label: '🚀 60 FPS',      fpsCap: 60, maxDpr: 1.5  }
+        ],
+        defaultModeIndex: 0
+    },
 
-    // Track
-    rails: 0x8b9198,          // Polished steel rail tops
-    railSides: 0x4f443c,      // Weathered rust on rail webs
-    sleepers: 0x696560,       // Seasoned concrete cross-ties
-    ballast: 0x45403b,        // Natural crushed stone ballast gravel
+    // Visual Themes / Lighting (Rich, Natural Simulator Palette)
+    colors: {
+        // Heritage Royal Navy & Champagne Gold Livery
+        trainBody: 0x16283d,
+        coachBody: 0x192d44,
+        trainStripe: 0xe0b658,
+        trainRoof: 0x242a32,
+        trainFrame: 0x15181c,
+        trainBogies: 0x1c2026,
+        trainWheels: 0x707882,
+        trainBuffersRed: 0x992b2b,
 
-    // Poles & Utility
-    poleWood: 0x3b332b,       // Dark treated utility pole wood
-    insulators: 0x324738,     // Natural muted ceramic glass insulator
-    lampWarm: 0xffd985,       // Warm 2700K incandescent street bulb
+        // Carriage & Window Glow
+        coachWindowGlow: 0xffe299,
+        coachGangway: 0x14171a,
 
-    // Sky & Lighting (Natural, balanced exposure - never over-saturated or cheap)
-    daySky: 0x7fa4cc,         // Natural atmospheric daylight sky
-    daySun: 0xfff6e8,         // Warm natural sunlight
-    dayAmbient: 0x93afd0,     // Soft sky fill light
-    moonlitSky: 0x0c1626,     // Luminous deep navy moonlit sky
-    moonlitMoon: 0xdee5f2,    // Glowing natural moon
-    moonlitAmbient: 0x1a2638, // Ambient silver-blue moonlight (clear visibility, never pitch black)
-    moonlitGround: 0x131e2c   // Subtle night terrain sheen
-  },
+        // Track & Infrastructure
+        rails: 0x9aa2ab,
+        sleepers: 0x6e6a63,
+        ballast: 0x4c4741,
+        subBallast: 0x3b3731,
 
-  // Audio Frequencies & Tuning
-  audio: {
-    idleRpmFreq: 28,          // Base diesel engine idle cylinder pulse (Hz)
-    maxRpmFreq: 64,           // Full throttle cylinder pulse (Hz)
-    hornFrequencies: [311.13, 370.00, 466.16], // Eb4, F#4, Bb4 - Authentic Nathan/Leslie train horn chime
-    rainNoiseDensity: 0.25
-  }
+        // Utility Poles
+        poleWood: 0x42352a,
+        insulators: 0x5ca38a,
+        lampWarm: 0xffd982,
+
+        // Atmospheric Presets
+        presets: {
+            day: {
+                name: 'Day',
+                icon: '☀️',
+                skyTop: 0x3d7cb8,
+                skyHorizon: 0xa8cbe8,
+                fogColor: 0x9ec2e0,
+                fogDensity: 0.00042,
+                sunColor: 0xfff7e6,
+                sunIntensity: 1.25,
+                sunPos: [140, 240, 160],
+                hemiSky: 0x9ec5eb,
+                hemiGround: 0x435e3a,
+                hemiIntensity: 0.72,
+                ambientColor: 0x8ba7c7,
+                ambientIntensity: 0.28,
+                starOpacity: 0.0,
+                moonVisible: false,
+                windowGlow: 0.08
+            },
+            sunset: {
+                name: 'Sunset',
+                icon: '🌅',
+                skyTop: 0x2c355c,
+                skyHorizon: 0xe6844e,
+                fogColor: 0xd9875b,
+                fogDensity: 0.00052,
+                sunColor: 0xff944d,
+                sunIntensity: 1.35,
+                sunPos: [-220, 95, 180],
+                hemiSky: 0xffa066,
+                hemiGround: 0x3d2920,
+                hemiIntensity: 0.68,
+                ambientColor: 0x8f5b4a,
+                ambientIntensity: 0.30,
+                starOpacity: 0.25,
+                moonVisible: false,
+                windowGlow: 0.75
+            },
+            night: {
+                name: 'Night',
+                icon: '🌙',
+                skyTop: 0x060d1a,
+                skyHorizon: 0x162a45,
+                fogColor: 0x102036,
+                fogDensity: 0.00055,
+                sunColor: 0xc8daf0,
+                sunIntensity: 0.52,
+                sunPos: [-120, 200, -140],
+                hemiSky: 0x263e63,
+                hemiGround: 0x121d2b,
+                hemiIntensity: 0.45,
+                ambientColor: 0x22344f,
+                ambientIntensity: 0.38,
+                starOpacity: 0.95,
+                moonVisible: true,
+                windowGlow: 1.45
+            }
+        }
+    },
+
+    // Audio Frequencies & Tuning
+    audio: {
+        idleRpmFreq: 26,
+        maxRpmFreq: 62,
+        hornFrequencies: [311.13, 370.00, 466.16], // Eb4, F#4, Bb4 chord chime
+        rainNoiseDensity: 0.22
+    }
 };

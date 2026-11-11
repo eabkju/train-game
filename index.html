@@ -1,93 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#080f1a">
-  <title>Realistic 3D Web Train Simulation</title>
-  <link rel="stylesheet" href="css/style.css?v=20261109_03">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#080f1a">
+    <title>Realistic 3D Web Train Simulation — Cool CPU Edition</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div id="loading-overlay">
-    <div class="train-spinner">🚂</div>
-    <div class="loader-title">3D Train Simulation</div>
-    <div class="loader-sub">Preparing realistic environment & tracks...</div>
-  </div>
-
-  <!-- 3D Canvas Host -->
-  <div id="canvas-container"></div>
-
-  <!-- Top Status & Mode HUD -->
-  <header id="top-hud">
-    <button id="btn-day-night" class="hud-btn" title="Toggle Day or Moonlit Night Mode">
-      <span class="hud-icon">☀️</span>
-      <span class="hud-val">Day</span>
-    </button>
-    <button id="btn-rain" class="hud-btn" title="Toggle Rain Atmosphere">
-      <span class="hud-icon">☁️</span>
-      <span class="hud-val">Rain: OFF</span>
-    </button>
-    <div class="hud-divider"></div>
-    <div id="speed-gauge" title="Train Velocity">
-      <span id="speed-gauge-val">0</span>
-      <span id="speed-gauge-unit">km/h</span>
-    </div>
-  </header>
-
-  <!-- Left-Side Camera Navigation (+, -, Recenter) -->
-  <nav id="left-camera-hud" aria-label="Camera Controls">
-    <button id="btn-zoom-in" class="cam-btn" title="Zoom In (+)">+</button>
-    <button id="btn-zoom-out" class="cam-btn" title="Zoom Out (-)">−</button>
-    <button id="btn-recenter" class="cam-btn" title="Recenter Camera on Train">🎯</button>
-  </nav>
-
-  <!-- The 3 Primary Controllers Dock (Autofit, Long-Tap Draggable) -->
-  <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
-    <div class="drag-grip-indicator" title="Drag Grip">
-      <span class="grip-bar"></span>
-      <span class="grip-bar"></span>
-      <span class="grip-bar"></span>
+    <!-- Loading Screen -->
+    <div id="loading-overlay">
+        <div class="train-spinner">🚂</div>
+        <div class="loader-title">Greenlands 3D Railway Simulator</div>
+        <div class="loader-sub">Initializing GPU-instanced scenery &amp; O(1) physics...</div>
     </div>
 
-    <!-- 1. Start / Stop Controller -->
-    <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
-      <span class="btn-icon">▶</span>
-      <span class="btn-label">START</span>
-      <span class="btn-sub">Throttle / Go</span>
-    </button>
+    <!-- 3D Canvas Host -->
+    <div id="canvas-container"></div>
 
-    <!-- 2. Horn Controller -->
-    <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
-      <span class="btn-icon">📢</span>
-      <span class="btn-label">HORN</span>
-      <span class="btn-sub">Press & Hold</span>
-    </button>
+    <!-- Top Status & Mode HUD -->
+    <header id="top-hud">
+        <button id="btn-day-night" class="hud-btn" title="Cycle Day / Golden Sunset / Moonlit Night (Hotkey: N)">
+            <span class="hud-icon">☀️</span>
+            <span class="hud-val">Day</span>
+        </button>
+        <button id="btn-rain" class="hud-btn" title="Toggle Rain Atmosphere (Hotkey: R)">
+            <span class="hud-icon">🌧️</span>
+            <span class="hud-val">Rain: OFF</span>
+        </button>
+        <button id="btn-cam-mode" class="hud-btn" title="Switch Camera View (Hotkey: C)">
+            <span class="hud-val">🎥 Chase</span>
+        </button>
+        <button id="btn-eco-mode" class="hud-btn eco-active" title="Toggle Thermal CPU / FPS Cap">
+            <span class="hud-val">🌿 Cool 45 FPS</span>
+        </button>
+        <button id="btn-mute" class="hud-btn" title="Mute / Unmute Sound">
+            <span class="hud-icon">🔊</span>
+        </button>
+        <div class="hud-divider"></div>
+        <div id="speed-gauge" title="Train Velocity">
+            <span id="speed-gauge-val">0</span>
+            <span id="speed-gauge-unit">km/h</span>
+        </div>
+    </header>
 
-    <!-- 3. Light Controller -->
-    <button id="btn-light" class="ctrl-btn" title="Toggle Train & Coach Cabin Lights (Hotkey: L)">
-      <span class="btn-icon">💡</span>
-      <span class="btn-label">LIGHT</span>
-      <span class="btn-sub">Lights OFF</span>
-    </button>
+    <!-- Live Thermal & Draw-Call Telemetry Pill -->
+    <div id="perf-pill" aria-live="polite">
+        <span class="perf-dot"></span>
+        <span id="perf-text">45 FPS · 24 Draw Calls · CPU Cool</span>
+    </div>
 
-    <div class="dock-hint">Hold 500ms to drag anywhere</div>
-  </div>
+    <!-- Left-Side Camera Navigation (+, -, Recenter) -->
+    <nav id="left-camera-hud" aria-label="Camera Controls">
+        <button id="btn-zoom-in" class="cam-btn" title="Zoom In (+)">+</button>
+        <button id="btn-zoom-out" class="cam-btn" title="Zoom Out (-)">−</button>
+        <button id="btn-recenter" class="cam-btn" title="Recenter Camera on Train">🎯</button>
+    </nav>
 
-  <!-- Vendored Core Libraries (Offline Compatible) -->
-  <script src="libs/three.min.js"></script>
-  <script src="libs/OrbitControls.js"></script>
-  <script src="libs/OBJLoader.js"></script>
+    <!-- The 3 Primary Controllers Dock + Throttle Slider (Long-Tap Draggable) -->
+    <div id="train-controls-dock" role="region" aria-label="Locomotive Controllers">
+        <div class="drag-grip-indicator" title="Hold 500ms to drag dock">
+            <span class="grip-bar"></span>
+            <span class="grip-bar"></span>
+            <span class="grip-bar"></span>
+        </div>
 
-  <!-- Game Scripts (Cache-Busted) -->
-  <script src="js/config.js?v=20261109_03"></script>
-  <script src="js/audio.js?v=20261109_03"></script>
-  <script src="js/physics.js?v=20261109_03"></script>
-  <script src="js/track.js?v=20261109_03"></script>
-  <script src="js/train.js?v=20261109_03"></script>
-  <script src="js/environment.js?v=20261109_03"></script>
-  <script src="js/weather.js?v=20261109_03"></script>
-  <script src="js/controls.js?v=20261109_03"></script>
-  <script src="js/main.js?v=20261109_03"></script>
+        <!-- 1. Start / Stop Controller -->
+        <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
+            <span class="btn-icon">▶</span>
+            <span class="btn-label">START</span>
+            <span class="btn-sub">Throttle / Go</span>
+        </button>
+
+        <!-- 2. Horn Controller -->
+        <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
+            <span class="btn-icon">📢</span>
+            <span class="btn-label">HORN</span>
+            <span class="btn-sub">Press &amp; Hold</span>
+        </button>
+
+        <!-- 3. Light Controller -->
+        <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
+            <span class="btn-icon">💡</span>
+            <span class="btn-label">LIGHT</span>
+            <span class="btn-sub">Lights OFF</span>
+        </button>
+
+        <!-- 4. Cruise Throttle Slider -->
+        <div class="throttle-stack">
+            <label for="throttle-slider" class="throttle-label">Throttle</label>
+            <input id="throttle-slider" type="range" min="25" max="100" value="85" title="Adjust Cruising Speed">
+        </div>
+
+        <div class="dock-hint">Hold 500ms to drag dock anywhere · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>
+    </div>
+
+    <!-- Local Three.js with CDN fallback -->
+    <script src="libs/three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+        }
+    </script>
+
+    <!-- Game Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/track.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/train.js"></script>
+    <script src="js/environment.js"></script>
+    <script src="js/village.js"></script>
+    <script src="js/weather.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
