@@ -3523,17 +3523,17 @@ class ChaiCustomer {
         this.isChaiwala = opts.isChaiwala || false;
 
         this.root = new THREE.Group();
-        this._buildMesh(opts);
-
-        // Place relative to tea stall
         this.root.position.copy(opts.stallPos);
         this.root.rotation.y = opts.stallRotY;
+
         this.group = new THREE.Group();
         this.group.position.copy(opts.localPos);
         if (this.isSitting) {
             this.group.rotation.y = Math.PI * 0.5; // Turn to face stall center
         }
         this.root.add(this.group);
+
+        this._buildMesh(opts);
         this.scene.add(this.root);
     }
 
