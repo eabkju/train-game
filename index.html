@@ -65,31 +65,37 @@
             <span class="grip-bar"></span>
         </div>
 
-        <!-- 1. Start / Stop Controller -->
-        <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
-            <span class="btn-icon">▶</span>
-            <span class="btn-label">START</span>
-            <span class="btn-sub">Throttle / Go</span>
-        </button>
-
-        <!-- 2. Horn Controller -->
-        <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
-            <span class="btn-icon">📢</span>
-            <span class="btn-label">HORN</span>
-            <span class="btn-sub">Press &amp; Hold</span>
-        </button>
-
-        <!-- 3. Light Controller -->
-        <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
-            <span class="btn-icon">💡</span>
-            <span class="btn-label">LIGHT</span>
-            <span class="btn-sub">Lights OFF</span>
-        </button>
-
-        <!-- 4. Cruise Throttle Slider -->
+        <!-- Cruise Throttle Slider (Above Start/Stop, Horn and Light) -->
         <div class="throttle-stack">
-            <label for="throttle-slider" class="throttle-label">Throttle</label>
+            <div class="throttle-header">
+                <span class="throttle-label">Cruise Throttle</span>
+                <span id="throttle-val-badge">85%</span>
+            </div>
             <input id="throttle-slider" type="range" min="25" max="100" value="85" title="Adjust Cruising Speed">
+        </div>
+
+        <!-- Primary Controllers Row (Start/Stop, Horn, Light) -->
+        <div class="ctrl-buttons-row">
+            <!-- 1. Start / Stop Controller -->
+            <button id="btn-start-stop" class="ctrl-btn" title="Toggle Throttle / Brakes (Hotkey: Space)">
+                <span class="btn-icon">▶</span>
+                <span class="btn-label">START</span>
+                <span class="btn-sub">Throttle / Go</span>
+            </button>
+
+            <!-- 2. Horn Controller -->
+            <button id="btn-horn" class="ctrl-btn" title="Sound Air Horn (Hotkey: H)">
+                <span class="btn-icon">📢</span>
+                <span class="btn-label">HORN</span>
+                <span class="btn-sub">Press &amp; Hold</span>
+            </button>
+
+            <!-- 3. Light Controller -->
+            <button id="btn-light" class="ctrl-btn" title="Toggle Headlight &amp; Coach Lights (Hotkey: L)">
+                <span class="btn-icon">💡</span>
+                <span class="btn-label">LIGHT</span>
+                <span class="btn-sub">Lights OFF</span>
+            </button>
         </div>
 
         <div class="dock-hint">Hold 500ms to drag dock anywhere · Space: Go/Stop · H: Horn · L: Lights · C: Camera</div>

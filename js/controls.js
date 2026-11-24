@@ -157,9 +157,12 @@ class GameControls {
 
         // 4. Throttle Slider
         const throttleSlider = document.getElementById('throttle-slider');
+        const throttleBadge = document.getElementById('throttle-val-badge');
         if (throttleSlider) {
             throttleSlider.addEventListener('input', (e) => {
-                const val = parseFloat(e.target.value) / 100;
+                const pct = Math.round(parseFloat(e.target.value));
+                if (throttleBadge) throttleBadge.textContent = pct + '%';
+                const val = pct / 100;
                 this.trainPhysics.setThrottleFraction(val);
             });
         }

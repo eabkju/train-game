@@ -229,9 +229,10 @@ canvas {
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 12px 18px;
+  gap: 10px;
+  padding: 10px 16px 14px 16px;
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -241,6 +242,7 @@ canvas {
   cursor: grab;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
   touch-action: none;
+  min-width: 290px;
 }
 
 #train-controls-dock:active {
@@ -254,17 +256,25 @@ canvas {
 
 .drag-grip-indicator {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 4px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 0;
   opacity: 0.45;
+  width: 100%;
 }
 
 .grip-bar {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
   background: var(--text-primary);
+}
+
+.ctrl-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .ctrl-btn {
@@ -358,26 +368,47 @@ canvas {
   box-shadow: 0 0 20px rgba(56, 189, 248, 0.45);
 }
 
-/* Throttle Slider Stack inside Dock */
+/* Throttle Slider Stack (Placed Above Buttons inside Dock) */
 .throttle-stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 5px;
-  padding-left: 8px;
-  border-left: 1px solid var(--border-glass);
+  width: 100%;
+  padding: 2px 4px 6px 4px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.throttle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 2px;
 }
 
 .throttle-label {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
+}
+
+#throttle-val-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: rgba(224, 182, 88, 0.12);
+  border: 1px solid rgba(224, 182, 88, 0.3);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-family: monospace, monospace;
 }
 
 #throttle-slider {
-  width: 84px;
+  width: 100%;
+  height: 6px;
   accent-color: var(--accent-gold);
   cursor: pointer;
 }
@@ -442,14 +473,19 @@ canvas {
    ========================================================= */
 @media (max-width: 680px) {
   #train-controls-dock {
-    bottom: 14px;
+    bottom: 12px;
+    gap: 6px;
+    padding: 8px 10px 10px 10px;
+    min-width: auto;
+  }
+
+  .ctrl-buttons-row {
     gap: 8px;
-    padding: 8px 12px;
   }
 
   .ctrl-btn {
     width: 72px;
-    height: 68px;
+    height: 66px;
     border-radius: 14px;
   }
 
@@ -462,7 +498,8 @@ canvas {
   }
 
   .throttle-stack {
-    display: none;
+    display: flex;
+    padding: 1px 2px 4px 2px;
   }
 
   #left-camera-hud {
