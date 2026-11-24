@@ -297,16 +297,28 @@ class GameControls {
         const dock = document.getElementById('train-controls-dock');
         if (!dock) return;
 
-        try {
-            const saved = localStorage.getItem('train_dock_pos_v2');
-            if (saved) {
-                const { left, top } = JSON.parse(saved);
-                dock.style.left = left + 'px';
-                dock.style.top = top + 'px';
-                dock.style.bottom = 'auto';
-                dock.style.transform = 'none';
+        // On mobile screens (<= 680px), always place dock in lower-mid visible portion by default
+        if (window.innerWidth > 680) {
+            try {
+                const saved = localStorage.getItem('train_dock_pos_v2');
+                if (saved) {
+                    const { left, top } = JSON.parse(saved);
+                    dock.style.left = left + 'px';
+                    dock.style.top = top + 'px';
+                    dock.style.bottom = 'auto';
+                    dock.style.transform = 'none';
+                }
+            } catch (err) {}
+        }
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 680) {
+                dock.style.left = '';
+                dock.style.top = '';
+                dock.style.bottom = '';
+                dock.style.transform = '';
             }
-        } catch (err) {}
+        });
 
         let holdTimer = null;
         let isDragging = false;
