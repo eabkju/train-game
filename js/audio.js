@@ -10,9 +10,14 @@ class TrainAudioEngine {
         this.engineOsc1 = null;
         this.engineOsc2 = null;
         this.engineFilter = null;
+        this.chugGain = null;
         this.engineGain = null;
         this.lfo = null;
         this.lfoGain = null;
+
+        this._lastRpmT = 0;
+        this._lastRatio = -1;
+        this._lastRun = null;
 
         this.wheelSource = null;
         this.wheelGain = null;
@@ -49,6 +54,11 @@ class TrainAudioEngine {
         this.audioCtx = new AC();
 
         const comp = this.audioCtx.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-6, this.audioCtx.currentTime);
+        comp.knee.setValueAtTime(6, this.audioCtx.currentTime);
+        comp.ratio.setValueAtTime(4, this.audioCtx.currentTime);
+        comp.attack.setValueAtTime(0.005, this.audioCtx.currentTime);
+        comp.release.setValueAtTime(0.15, this.audioCtx.currentTime);
         comp.connect(this.audioCtx.destination);
 
         this.masterGain = this.audioCtx.createGain();
@@ -74,33 +84,41 @@ class TrainAudioEngine {
 
     _setupDieselEngine() {
         const t = this.audioCtx.currentTime;
+        // Warm dual oscillators for deep diesel prime mover rumble without high-frequency buzz
         this.engineOsc1 = this.audioCtx.createOscillator();
-        this.engineOsc1.type = 'sawtooth';
+        this.engineOsc1.type = 'triangle';
         this.engineOsc1.frequency.setValueAtTime(GAME_CONFIG.audio.idleRpmFreq, t);
 
         this.engineOsc2 = this.audioCtx.createOscillator();
         this.engineOsc2.type = 'triangle';
         this.engineOsc2.frequency.setValueAtTime(GAME_CONFIG.audio.idleRpmFreq * 1.5, t);
 
+        // Lowpass filter with Q = 0.8 to eliminate whistling/buzzy resonance
         this.engineFilter = this.audioCtx.createBiquadFilter();
         this.engineFilter.type = 'lowpass';
-        this.engineFilter.frequency.setValueAtTime(180, t);
-        this.engineFilter.Q.setValueAtTime(2.2, t);
+        this.engineFilter.frequency.setValueAtTime(160, t);
+        this.engineFilter.Q.setValueAtTime(0.8, t);
 
-        this.engineGain = this.audioCtx.createGain();
-        this.engineGain.gain.setValueAtTime(0.0, t);
-
+        // Dedicated chug tremolo VCA: modulates amplitude cleanly without zero-crossing distortion
         this.lfo = this.audioCtx.createOscillator();
         this.lfo.type = 'sine';
         this.lfo.frequency.setValueAtTime(7, t);
+
+        this.chugGain = this.audioCtx.createGain();
+        this.chugGain.gain.setValueAtTime(0.85, t);
         this.lfoGain = this.audioCtx.createGain();
-        this.lfoGain.gain.setValueAtTime(0.04, t);
+        this.lfoGain.gain.setValueAtTime(0.15, t);
         this.lfo.connect(this.lfoGain);
-        this.lfoGain.connect(this.engineGain.gain);
+        this.lfoGain.connect(this.chugGain.gain);
+
+        // Main engine envelope gain (silence when stopped)
+        this.engineGain = this.audioCtx.createGain();
+        this.engineGain.gain.setValueAtTime(0.0, t);
 
         this.engineOsc1.connect(this.engineFilter);
         this.engineOsc2.connect(this.engineFilter);
-        this.engineFilter.connect(this.engineGain);
+        this.engineFilter.connect(this.chugGain);
+        this.chugGain.connect(this.engineGain);
         this.engineGain.connect(this.masterGain);
 
         this.engineOsc1.start();
@@ -187,16 +205,25 @@ class TrainAudioEngine {
     }
 
     updateRPM(speedRatio, isRunning) {
-        if (!this.isInitialized || !this.audioCtx) return;
+        if (!this.isInitialized || !this.audioCtx || this.audioCtx.state !== 'running') return;
+
+        // Throttle automation calls (~20Hz) to prevent parameter zipper noise
+        const now = performance.now();
+        if (now - this._lastRpmT < 48) return;
+        if (Math.abs(speedRatio - this._lastRatio) < 0.005 && isRunning === this._lastRun) return;
+        this._lastRpmT = now;
+        this._lastRatio = speedRatio;
+        this._lastRun = isRunning;
+
         const t = this.audioCtx.currentTime;
         const active = isRunning || speedRatio > 0.01;
 
         const baseFreq = GAME_CONFIG.audio.idleRpmFreq + (GAME_CONFIG.audio.maxRpmFreq - GAME_CONFIG.audio.idleRpmFreq) * speedRatio;
         this.engineOsc1.frequency.setTargetAtTime(baseFreq, t, 0.15);
         this.engineOsc2.frequency.setTargetAtTime(baseFreq * 1.5, t, 0.15);
-        this.engineFilter.frequency.setTargetAtTime(170 + speedRatio * 360, t, 0.15);
+        this.engineFilter.frequency.setTargetAtTime(160 + speedRatio * 180, t, 0.15);
         this.lfo.frequency.setTargetAtTime(6 + speedRatio * 14, t, 0.15);
-        this.engineGain.gain.setTargetAtTime(active ? (0.14 + speedRatio * 0.18) : 0.0, t, 0.2);
+        this.engineGain.gain.setTargetAtTime(active ? (0.16 + speedRatio * 0.18) : 0.0, t, 0.2);
 
         this.wheelSource.playbackRate.setTargetAtTime(Math.max(0.1, 0.45 + speedRatio * 1.15), t, 0.1);
         this.wheelGain.gain.setTargetAtTime(speedRatio > 0.02 ? Math.min(0.55, speedRatio * 0.65) : 0.0, t, 0.12);
